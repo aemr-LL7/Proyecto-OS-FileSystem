@@ -26,12 +26,12 @@ public class FileSystemManager {
 
     public FileSystemManager(JTree fileSystemTree) {
         this.fileSystemTree = fileSystemTree;
-        this.rootDirectory = new Directory("root", null);
+        this.rootDirectory = new Directory("/root", null);
         this.fat = new FileAllocationTable();
     }
 
     public void updateTree() {
-        DefaultMutableTreeNode rootNode = new DefaultMutableTreeNode(getRootDirectory().getName());
+        DefaultMutableTreeNode rootNode = new DefaultMutableTreeNode(getRootDirectory()); // Usar el objeto Directory
         this.buildTreeNode(rootNode, getRootDirectory());
 
         DefaultTreeModel model = (DefaultTreeModel) fileSystemTree.getModel();
@@ -39,13 +39,12 @@ public class FileSystemManager {
         model.reload();
     }
 
-    // Recursively build the tree structure from the directory structure
+// Recursively build the tree structure from the directory structure
     private void buildTreeNode(DefaultMutableTreeNode parentNode, Directory directory) {
-
         SimpleList<OurFile> files = directory.getFiles();
         for (int i = 0; i < files.getSize(); i++) {
             OurFile file = files.getValueByIndex(i);
-            DefaultMutableTreeNode fileNode = new DefaultMutableTreeNode(file.getName() + " (" + file.getSize() + " blocks)");
+            DefaultMutableTreeNode fileNode = new DefaultMutableTreeNode(file); // Guardar el objeto OurFile
             parentNode.add(fileNode);
         }
 
@@ -53,7 +52,7 @@ public class FileSystemManager {
         SimpleList<Directory> subdirs = directory.getSubdirectories();
         for (int i = 0; i < subdirs.getSize(); i++) {
             Directory subdir = subdirs.getValueByIndex(i);
-            DefaultMutableTreeNode subdirNode = new DefaultMutableTreeNode(subdir.getName());
+            DefaultMutableTreeNode subdirNode = new DefaultMutableTreeNode(subdir); // Guardar el objeto Directory
             parentNode.add(subdirNode);
             this.buildTreeNode(subdirNode, subdir);
         }
@@ -476,7 +475,7 @@ public class FileSystemManager {
         }
 
         StringBuilder content = new StringBuilder();
-        
+
         content.append("File Allocation Table:\n");
         content.append(String.format("%-20s %-15s %-15s\n", "Nombre de archivo", "Bloques", "Primer Bloque"));
         content.append("-".repeat(50)).append("\n");
@@ -528,7 +527,7 @@ public class FileSystemManager {
 
     // Obtener la ruta completa de un directorio
     private String getFullPath(Directory dir) {
-        
+
         if (dir.getParent() == null) {
             return "/root";
         }
