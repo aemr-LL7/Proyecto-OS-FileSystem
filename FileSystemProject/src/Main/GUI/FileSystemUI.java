@@ -4,18 +4,26 @@
  */
 package Main.GUI;
 
+import EDD.SimpleList;
 import FileSystem.Directory;
 import FileSystem.FileAllocationTable;
+import FileSystem.FileAllocationTable.FileTableEntry;
 import FileSystem.OurFile;
 import FileSystem.Storage;
 import Managers.FileSystemManager;
+import java.awt.Color;
+import java.awt.Component;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import javax.swing.JFrame;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPopupMenu;
+import javax.swing.JTable;
 import javax.swing.SwingUtilities;
+import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableColumn;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreePath;
@@ -32,6 +40,7 @@ public class FileSystemUI extends javax.swing.JFrame {
     private String currentPath = "";
 
     private JPopupMenu contextMenu;
+    private DefaultTableModel tableFilesModel;
 
     // parametros a considerar
     /**
@@ -47,13 +56,18 @@ public class FileSystemUI extends javax.swing.JFrame {
         //this.setResizable(false);
 
         // configuraciones
-        // Iniciar componentes
-        this.setupContextMenu();
-        this.setupListeners();
-
         // Iniciar el filesystem manager
         fsManager = new FileSystemManager(fileSystemTree);
         fsManager.updateTree();
+
+        // Iniciar tabla de archivos
+        tableFilesModel = new DefaultTableModel(new String[]{"Nombre de Archivo", "Bloques Asignados", "Primer Espacio de Bloque"}, 0);
+        
+        // Initial updates
+        this.updateFilesTable();
+        this.setupContextMenu();
+        this.setupListeners();
+
     }
 
     public static synchronized FileSystemUI getInstance() {
@@ -61,6 +75,64 @@ public class FileSystemUI extends javax.swing.JFrame {
             setFileSystemUiInstance(new FileSystemUI());
         }
         return fileSystemUiInstance;
+    }
+
+    private void updateFilesTable() {
+
+        tableFilesModel.setRowCount(0);
+
+        FileAllocationTable fat = this.fsManager.getFat();
+        SimpleList<FileTableEntry> entries = fat.getEntries();
+
+        for (int i = 0; i < entries.getSize(); i++) {
+            FileTableEntry entry = entries.getValueByIndex(i);
+
+            // GInformacion del archivo
+            String fileName = entry.getFileName();
+            int blocksAllocated = entry.getBlocksAllocated();
+            String firstBlockAddress = entry.getFirstBlockAddress();
+
+            tableFilesModel.addRow(new String[]{fileName, String.valueOf(blocksAllocated), firstBlockAddress});
+            this.filesJTable.setModel(tableFilesModel);
+        }
+
+        // Apply custom cell renderer for the filename column
+        filesJTable.getColumnModel().getColumn(0).setCellRenderer(new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+                Component cell = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+
+                if (!isSelected) {
+                    String fileName = (String) value;
+                    Color fileColor = generateFileColor(fileName);
+
+                    cell.setForeground(fileColor);
+                }
+
+                return cell;
+            }
+        });
+
+        // Refresh the table UI
+        filesJTable.repaint();
+    }
+
+    private Color generateFileColor(String fileName) {
+
+        if (fileName != null) {
+
+            int hash = fileName.hashCode();
+
+            int r = Math.abs(hash) % 200;          // Componente rojo ente 0-199
+            int g = Math.abs(hash / 256) % 200;    // Componente verde ente 0-199
+            int b = Math.abs(hash / 65536) % 200;  // Componente azul ente 0-199
+            r += 55;
+            g += 55;
+            b += 55;
+            return new Color(r, g, b);
+
+        }
+        return null;
     }
 
     private void setupContextMenu() {
@@ -171,10 +243,11 @@ public class FileSystemUI extends javax.swing.JFrame {
 
                 System.out.println("WE MADE IT DIRECTORY NOW");
                 // Se actualiza automaticamente la UI
+                this.updateFilesTable();
             }
         } else {
             JOptionPane.showMessageDialog(this,
-                    "Directorios solo puedenser creados sobre otros directorios.",
+                    "Directorios solo pueden ser creados sobre otros directorios.",
                     "No se puede crear Directorio",
                     JOptionPane.ERROR_MESSAGE);
         }
@@ -214,40 +287,40 @@ public class FileSystemUI extends javax.swing.JFrame {
 
                         parentDir.addFile(newFile);
 
-                        FileAllocationTable fat = new FileAllocationTable();
+                        FileAllocationTable fat = this.fsManager.getFat();
                         fat.addEntry(newFile);
 
                         DefaultMutableTreeNode newNode = new DefaultMutableTreeNode(newFile);
                         treeModel.insertNodeInto(newNode, selectedParentNode, selectedParentNode.getChildCount());
 
                         this.fileSystemTree.expandPath(new TreePath(selectedParentNode.getPath()));
-
+                        this.updateFilesTable();
                         System.out.println("WE MADE IT NEW FILES NOW");
 
                     } else {
                         JOptionPane.showMessageDialog(this,
-                                "Not enough storage space for this file size.",
-                                "Allocation Failed",
+                                "No hay espacio suficiente para este tamaño de archivo.",
+                                "Localizacion fallida",
                                 JOptionPane.ERROR_MESSAGE);
                     }
                 } catch (NumberFormatException e) {
                     JOptionPane.showMessageDialog(this,
-                            "Please enter a valid number for file size.",
-                            "Invalid Size",
+                            "Por favor ingrese un numero valido para el tamaño de archivo.",
+                            "Tamaño invalido",
                             JOptionPane.ERROR_MESSAGE);
                 }
             }
         } else if (nodeObject instanceof OurFile) {
             // Show an error if trying to create a file inside another file
             JOptionPane.showMessageDialog(this,
-                    "Files cannot contain other files. Please select a directory.",
-                    "Cannot Create File",
+                    "Archivos no pueden contener otros archivos. Por favor selecciones un directorio.",
+                    "Creacion de Archivos fallida",
                     JOptionPane.ERROR_MESSAGE);
         } else {
             // For any other case, show generic error
             JOptionPane.showMessageDialog(this,
-                    "Files can only be created inside directories.",
-                    "Cannot Create File",
+                    "Los archivos solo pueden ser creados dentro de directorios.",
+                    "Error al crear Archivo",
                     JOptionPane.ERROR_MESSAGE);
         }
     }
@@ -282,6 +355,11 @@ public class FileSystemUI extends javax.swing.JFrame {
         jScrollPane2 = new javax.swing.JScrollPane();
         fileSystemTree = new javax.swing.JTree();
         controlPanel = new javax.swing.JPanel();
+        filesPanel = new javax.swing.JPanel();
+        jScrollPane1 = new javax.swing.JScrollPane();
+        filesJTable = new javax.swing.JTable();
+        storageViewPanel = new javax.swing.JPanel();
+        blockStoragePanel = new javax.swing.JPanel();
         mainMenuBar = new javax.swing.JMenuBar();
         fileMenuItem = new javax.swing.JMenu();
         saveOptionMenuItem = new javax.swing.JMenuItem();
@@ -291,6 +369,7 @@ public class FileSystemUI extends javax.swing.JFrame {
         mainPanel.setBackground(new java.awt.Color(204, 255, 255));
 
         viewTreePanel.setBackground(new java.awt.Color(255, 204, 204));
+        viewTreePanel.setBorder(javax.swing.BorderFactory.createTitledBorder("Explorador de Archivos"));
 
         jScrollPane2.setViewportView(fileSystemTree);
 
@@ -307,7 +386,7 @@ public class FileSystemUI extends javax.swing.JFrame {
             viewTreePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(viewTreePanelLayout.createSequentialGroup()
                 .addContainerGap()
-                .addComponent(jScrollPane2, javax.swing.GroupLayout.DEFAULT_SIZE, 608, Short.MAX_VALUE)
+                .addComponent(jScrollPane2, javax.swing.GroupLayout.DEFAULT_SIZE, 585, Short.MAX_VALUE)
                 .addGap(131, 131, 131))
         );
 
@@ -318,11 +397,87 @@ public class FileSystemUI extends javax.swing.JFrame {
         controlPanel.setLayout(controlPanelLayout);
         controlPanelLayout.setHorizontalGroup(
             controlPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 1114, Short.MAX_VALUE)
+            .addGap(0, 1104, Short.MAX_VALUE)
         );
         controlPanelLayout.setVerticalGroup(
             controlPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGap(0, 231, Short.MAX_VALUE)
+        );
+
+        filesPanel.setBackground(new java.awt.Color(153, 255, 153));
+        filesPanel.setBorder(javax.swing.BorderFactory.createTitledBorder("Tabla de Asignación"));
+
+        filesJTable.setModel(new javax.swing.table.DefaultTableModel(
+            new Object [][] {
+
+            },
+            new String [] {
+                "Archivo", "Bloques Asignados", "Dirección Primer Bloque"
+            }
+        ) {
+            Class[] types = new Class [] {
+                java.lang.String.class, java.lang.String.class, java.lang.String.class
+            };
+            boolean[] canEdit = new boolean [] {
+                false, false, false
+            };
+
+            public Class getColumnClass(int columnIndex) {
+                return types [columnIndex];
+            }
+
+            public boolean isCellEditable(int rowIndex, int columnIndex) {
+                return canEdit [columnIndex];
+            }
+        });
+        filesJTable.setEnabled(false);
+        jScrollPane1.setViewportView(filesJTable);
+
+        javax.swing.GroupLayout filesPanelLayout = new javax.swing.GroupLayout(filesPanel);
+        filesPanel.setLayout(filesPanelLayout);
+        filesPanelLayout.setHorizontalGroup(
+            filesPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(filesPanelLayout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 446, Short.MAX_VALUE)
+                .addContainerGap())
+        );
+        filesPanelLayout.setVerticalGroup(
+            filesPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(filesPanelLayout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 333, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addContainerGap(94, Short.MAX_VALUE))
+        );
+
+        storageViewPanel.setBackground(new java.awt.Color(204, 204, 255));
+        storageViewPanel.setBorder(javax.swing.BorderFactory.createTitledBorder("Almacenamiento"));
+
+        javax.swing.GroupLayout blockStoragePanelLayout = new javax.swing.GroupLayout(blockStoragePanel);
+        blockStoragePanel.setLayout(blockStoragePanelLayout);
+        blockStoragePanelLayout.setHorizontalGroup(
+            blockStoragePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGap(0, 0, Short.MAX_VALUE)
+        );
+        blockStoragePanelLayout.setVerticalGroup(
+            blockStoragePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGap(0, 0, Short.MAX_VALUE)
+        );
+
+        javax.swing.GroupLayout storageViewPanelLayout = new javax.swing.GroupLayout(storageViewPanel);
+        storageViewPanel.setLayout(storageViewPanelLayout);
+        storageViewPanelLayout.setHorizontalGroup(
+            storageViewPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(storageViewPanelLayout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(blockStoragePanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addContainerGap())
+        );
+        storageViewPanelLayout.setVerticalGroup(
+            storageViewPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(storageViewPanelLayout.createSequentialGroup()
+                .addComponent(blockStoragePanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addContainerGap())
         );
 
         javax.swing.GroupLayout mainPanelLayout = new javax.swing.GroupLayout(mainPanel);
@@ -332,13 +487,22 @@ public class FileSystemUI extends javax.swing.JFrame {
             .addGroup(mainPanelLayout.createSequentialGroup()
                 .addComponent(viewTreePanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(controlPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addGroup(mainPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(controlPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addGroup(mainPanelLayout.createSequentialGroup()
+                        .addComponent(filesPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(storageViewPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addContainerGap())))
         );
         mainPanelLayout.setVerticalGroup(
             mainPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addComponent(viewTreePanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, mainPanelLayout.createSequentialGroup()
-                .addGap(0, 0, Short.MAX_VALUE)
+            .addGroup(mainPanelLayout.createSequentialGroup()
+                .addGroup(mainPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                    .addComponent(filesPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(storageViewPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addComponent(controlPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
         );
 
@@ -402,13 +566,18 @@ public class FileSystemUI extends javax.swing.JFrame {
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JPanel blockStoragePanel;
     private javax.swing.JPanel controlPanel;
     private javax.swing.JMenu fileMenuItem;
     private javax.swing.JTree fileSystemTree;
+    private javax.swing.JTable filesJTable;
+    private javax.swing.JPanel filesPanel;
+    private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JScrollPane jScrollPane2;
     private javax.swing.JMenuBar mainMenuBar;
     private javax.swing.JPanel mainPanel;
     private javax.swing.JMenuItem saveOptionMenuItem;
+    private javax.swing.JPanel storageViewPanel;
     private javax.swing.JPanel viewTreePanel;
     // End of variables declaration//GEN-END:variables
 

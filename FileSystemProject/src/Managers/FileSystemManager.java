@@ -113,7 +113,7 @@ public class FileSystemManager {
 
         // Añadir al directorio y a la entrada de FAT
         parent.addFile(newFile);
-        fat.addEntry(newFile);
+        getFat().addEntry(newFile);
 
         // Update tree
         this.updateTree();
@@ -154,7 +154,7 @@ public class FileSystemManager {
 
         // Vacia los bloques, elimina de FAT
         Storage.getInstance().freeBlocks(fileToDelete);
-        fat.removeEntry(fileToDelete);
+        getFat().removeEntry(fileToDelete);
 
         // Lo saca del directorio
         parent.removeFile(fileToDelete);
@@ -238,9 +238,9 @@ public class FileSystemManager {
         }
 
         // Actualiza FAT
-        fat.removeEntry(fileToRename);
+        getFat().removeEntry(fileToRename);
         fileToRename.setName(newName);
-        fat.addEntry(fileToRename);
+        getFat().addEntry(fileToRename);
 
         // Update tree
         this.updateTree();
@@ -468,7 +468,7 @@ public class FileSystemManager {
 
     // Retorna la "tabla" FAT como string
     public String printFATContent() {
-        SimpleList<FileAllocationTable.FileTableEntry> entries = fat.getEntries();
+        SimpleList<FileAllocationTable.FileTableEntry> entries = getFat().getEntries();
 
         if (entries.getSize() == 0) {
             return "La Tabla de Asignación de Archivos (F.A.T) esta vacia.";
@@ -542,4 +542,10 @@ public class FileSystemManager {
         return rootDirectory;
     }
 
+    /**
+     * @return the fat
+     */
+    public FileAllocationTable getFat() {
+        return fat;
+    }
 }

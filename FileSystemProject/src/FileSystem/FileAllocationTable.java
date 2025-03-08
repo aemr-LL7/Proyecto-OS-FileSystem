@@ -24,7 +24,7 @@ public class FileAllocationTable {
             FileTableEntry entry = new FileTableEntry(
                     file.getName(),
                     file.getSize(),
-                    firstBlock.getRow() + "," + firstBlock.getCol()
+                    "col: "+firstBlock.getRow() + ", row: " + firstBlock.getCol()
             );
             entries.addAtTheEnd(entry);
         }
