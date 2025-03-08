@@ -10,7 +10,7 @@ package FileSystem;
  */
 class Data {
     private int dataNumber;
-    private File father;
+    private OurFile father;
 
     public Data(int dataNumber) {
         this.dataNumber = dataNumber;
@@ -25,11 +25,11 @@ class Data {
         this.dataNumber = dataNumber;
     }
 
-    public File getFather() {
+    public OurFile getFather() {
         return father;
     }
 
-    public void setFather(File father) {
+    public void setFather(OurFile father) {
         this.father = father;
     }
     
