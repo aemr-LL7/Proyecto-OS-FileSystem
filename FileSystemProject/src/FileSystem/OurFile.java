@@ -23,7 +23,7 @@ public class OurFile {
 
     }
 
-    public SimpleList<Data> generateDataNodes(int size) {
+    private SimpleList<Data> generateDataNodes(int size) {
 
         SimpleList<Data> dataNodes = new SimpleList<>();
         for (int i = 0; i < size; i++) {

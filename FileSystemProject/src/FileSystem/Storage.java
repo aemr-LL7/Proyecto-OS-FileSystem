@@ -86,7 +86,7 @@ public class Storage {
 
     // Verifica si un nodo de datos pertenece a un archivo especifico
     private boolean belongsToFile(Data data, OurFile file) {
-        return data.getFather() == file;
+        return data.getFather().equals(file);
     }
 
     // Obtener la cantidad de bloques disponibles
