@@ -138,6 +138,11 @@ public class Storage {
         }
 
     }
+    
+    //Hacer metodo para que funcione el cambiar de nombre. Necesitamos poderle llegar al archivo y cambiarle el nombre y ya xd
+    public void modifyFile(OurFile file, String newName){
+        
+    }
 
     /**
      * @return the storageSize
