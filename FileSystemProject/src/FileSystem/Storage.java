@@ -4,6 +4,7 @@
  */
 package FileSystem;
 
+import EDD.OurHashTable;
 import EDD.SimpleList;
 import EDD.SimpleNode;
 
@@ -17,7 +18,7 @@ public class Storage {
     private OurData[][] storageMatrix;       // Matriz que representa los bloques del disco
     private int availableStorage;
     private static Storage instance;
-    private SimpleList<OurFile> fileList;
+    private OurHashTable<OurFile> fileTable;
 
     private Storage() {
         this.storageSize = 6;
@@ -35,13 +36,19 @@ public class Storage {
     // Asignar bloques a un archivo usando asignacion encadenada
     public void allocateBlocks(OurFile file) {
         int blocksNeeded = file.getSize();
+        String key = file.getName();
 
         // Verificar si hay suficientes bloques disponibles
         if (this.availableStorage < blocksNeeded) {
             System.out.println("Epa no tengo espacio papa");
             return;
         }
-        
+
+        if (this.fileTable.isKeyTaken(key)) {
+            System.out.println("Epa ese nombre esta tomado");
+            return;
+        }
+
         //Matriz temporal para guardar las posiciones donde se hara la insercion, siempre vuelve como una matriz de nx2
         //donde n es el tamanyo del archivo y en cada posicion hay una tupla del tipo [fila,columna]
         int[][] freePositions = this.getFreePositions(blocksNeeded);
@@ -55,7 +62,7 @@ public class Storage {
             auxNode = auxNode.getpNext();
         }
 
-        this.fileList.addAtTheEnd(file);
+        this.fileTable.put(key, file);
         this.availableStorage -= blocksNeeded;
     }
 
@@ -63,19 +70,19 @@ public class Storage {
     public void deleteFile(OurFile file) {
 
         SimpleNode<OurData> auxNode = file.getDataNodes().getpFirst();
-        while(auxNode != null){
+        while (auxNode != null) {
             int row = auxNode.getData().getIndexRow();
             int col = auxNode.getData().getIndexCol();
             this.storageMatrix[row][col] = null;
-            
+
             //Reseteamos las posiciones desde los datanodes porque ya no estan en almacenamiento
             auxNode.getData().setStorageMatrixIndex(0, 0);
-            
+
             auxNode = auxNode.getpNext();
             this.availableStorage++;
         }
-        
-        this.fileList.delete(file);
+
+        this.fileTable.delete(file.getName());
     }
 
     // Verifica si un nodo de datos pertenece a un archivo especifico
@@ -117,21 +124,21 @@ public class Storage {
         }
         return freePositions; // Devolver las posiciones encontradas
     }
-    
+
     //Codigo para "Defragmentar" el almacenamiento
-    public void defragmentStorage(){
+    public void defragmentStorage() {
         this.storageMatrix = new OurData[this.storageSize][this.storageSize];
         this.availableStorage = this.storageSize;
-        
-        SimpleNode<OurFile> auxNode = this.getFileList().getpFirst();
-        while(auxNode != null){
+
+        SimpleNode<OurFile> auxNode = this.fileTable.getEntriesList().getpFirst();
+        while (auxNode != null) {
             OurFile file = auxNode.getData();
             this.allocateBlocks(file);
             auxNode = auxNode.getpNext();
         }
-        
+
     }
-    
+
     /**
      * @return the storageSize
      */
@@ -180,14 +187,12 @@ public class Storage {
         this.availableStorage = availableStorage;
     }
 
-    public SimpleList<OurFile> getFileList() {
-        return fileList;
+    public OurHashTable<OurFile> getFileTable() {
+        return fileTable;
     }
 
-    public void setFileList(SimpleList<OurFile> fileList) {
-        this.fileList = fileList;
+    public void setFileTable(OurHashTable<OurFile> fileTable) {
+        this.fileTable = fileTable;
     }
-    
-    
 
 }
