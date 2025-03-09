@@ -5,6 +5,7 @@
 package FileSystem;
 
 import EDD.SimpleList;
+import EDD.SimpleNode;
 
 /**
  *
@@ -13,20 +14,15 @@ import EDD.SimpleList;
 public class Storage {
 
     private int storageSize;       // Dimensión de la matriz
-    private Data[][] blocks;       // Matriz que representa los bloques del disco
-    private boolean[][] occupied;  // Matriz para rastrear bloques ocupados
+    private OurData[][] storageMatrix;       // Matriz que representa los bloques del disco
+    private int availableStorage;
     private static Storage instance;
+    private SimpleList<OurFile> fileList;
 
     private Storage() {
-        this.storageSize = 25;
-        this.blocks = new Data[25][25];
-        this.occupied = new boolean[25][25];
-        // Inicializar todos los bloques como libres
-        for (int i = 0; i < 25; i++) {
-            for (int j = 0; j < 25; j++) {
-                this.occupied[i][j] = false;
-            }
-        }
+        this.storageSize = 6;
+        this.storageMatrix = new OurData[6][6];
+        this.availableStorage = storageSize * storageSize;
     }
 
     public static synchronized Storage getInstance() {
@@ -37,64 +33,62 @@ public class Storage {
     }
 
     // Asignar bloques a un archivo usando asignacion encadenada
-    public boolean allocateBlocks(OurFile file) {
+    public void allocateBlocks(OurFile file) {
         int blocksNeeded = file.getSize();
-        SimpleList<BlockPosition> positions = new SimpleList<>();
 
         // Verificar si hay suficientes bloques disponibles
-        if (getAvailableBlocks() < blocksNeeded) {
-            return false;
+        if (this.availableStorage < blocksNeeded) {
+            System.out.println("Epa no tengo espacio papa");
+            return;
+        }
+        
+        //Matriz temporal para guardar las posiciones donde se hara la insercion, siempre vuelve como una matriz de nx2
+        //donde n es el tamanyo del archivo y en cada posicion hay una tupla del tipo [fila,columna]
+        int[][] freePositions = this.getFreePositions(blocksNeeded);
+
+        SimpleNode<OurData> auxNode = file.getDataNodes().getpFirst();
+        for (int positionMatrixIndex = 0; positionMatrixIndex < blocksNeeded; positionMatrixIndex++) {
+            int row = freePositions[positionMatrixIndex][0];
+            int col = freePositions[positionMatrixIndex][1];
+            this.storageMatrix[row][col] = auxNode.getData();
+            auxNode.getData().setStorageMatrixIndex(row, col);
+            auxNode = auxNode.getpNext();
         }
 
-        // Buscar bloques libres y asignarlos
-        for (int i = 0; i < this.storageSize && blocksNeeded > 0; i++) {
-            for (int j = 0; j < this.storageSize && blocksNeeded > 0; j++) {
-                if (!this.occupied[i][j]) {
-                    this.occupied[i][j] = true;
-                    positions.addAtTheEnd(new BlockPosition(i, j));
-                    blocksNeeded--;
-                }
-            }
-        }
-
-        // Asignar los bloques al archivo (vincular los nodos de datos)
-        SimpleList<Data> dataNodes = file.getDataNodes();
-
-        for (int i = 0; i < positions.getSize(); i++) {
-            BlockPosition pos = positions.getValueByIndex(i);
-            Data dataNode = dataNodes.getValueByIndex(i);
-            this.blocks[pos.getRow()][pos.getCol()] = dataNode;
-        }
-
-        return true;
+        this.fileList.addAtTheEnd(file);
+        this.availableStorage -= blocksNeeded;
     }
 
-    // Liberar bloques de un archivo
-    public void freeBlocks(OurFile file) {
-        SimpleList<Data> dataNodes = file.getDataNodes();
+    // Liberar bloques de un archivo (Probablemente haya que buscar otra forma de referenciar el objeto archivo aca desde la UI)
+    public void deleteFile(OurFile file) {
 
-        // Buscar los bloques del archivo y liberarlos
-        for (int i = 0; i < getStorageSize(); i++) {
-            for (int j = 0; j < getStorageSize(); j++) {
-                if (this.blocks[i][j] != null && this.belongsToFile(this.blocks[i][j], file)) {
-                    this.blocks[i][j] = null;
-                    this.occupied[i][j] = false;
-                }
-            }
+        SimpleNode<OurData> auxNode = file.getDataNodes().getpFirst();
+        while(auxNode != null){
+            int row = auxNode.getData().getIndexRow();
+            int col = auxNode.getData().getIndexCol();
+            this.storageMatrix[row][col] = null;
+            
+            //Reseteamos las posiciones desde los datanodes porque ya no estan en almacenamiento
+            auxNode.getData().setStorageMatrixIndex(0, 0);
+            
+            auxNode = auxNode.getpNext();
+            this.availableStorage++;
         }
+        
+        this.fileList.delete(file);
     }
 
     // Verifica si un nodo de datos pertenece a un archivo especifico
-    private boolean belongsToFile(Data data, OurFile file) {
+    private boolean belongsToFile(OurData data, OurFile file) {
         return data.getFather() == file;
     }
 
     // Obtener la cantidad de bloques disponibles
-    public int getAvailableBlocks() {
+    public int countAvailableBlocks() {
         int count = 0;
         for (int i = 0; i < this.storageSize; i++) {
             for (int j = 0; j < this.storageSize; j++) {
-                if (!this.occupied[i][j]) {
+                if (this.storageMatrix[i][j] == null) {
                     count++;
                 }
             }
@@ -102,37 +96,42 @@ public class Storage {
         return count;
     }
 
-    // Busca la ubicacion del 1er bloque de un archivo
-    public BlockPosition getFirstBlockPosition(OurFile file) {
+    private int[][] getFreePositions(int blocksNeeded) {
+        int[][] freePositions = new int[blocksNeeded][2];
+        int freeCount = 0;
 
-        for (int i = 0; i < this.storageSize; i++) {
-            for (int j = 0; j < this.storageSize; j++) {
-                if (this.blocks[i][j] != null && getBlocks()[i][j].getFather() == file && this.blocks[i][j].getDataNumber() == 0) {
-                    return new BlockPosition(i, j);
+        // Recorrer la matriz para encontrar posiciones vacías
+        for (int i = 0; i < storageSize; i++) {
+            for (int j = 0; j < storageSize; j++) {
+                if (!this.isIndexOccupied(i, j)) {
+                    freePositions[freeCount][0] = i; // Fila
+                    freePositions[freeCount][1] = j; // Columna
+                    freeCount++;
+
+                    // Salir del bucle si ya hemos llenado el array
+                    if (freeCount == blocksNeeded) {
+                        return freePositions;
+                    }
                 }
             }
         }
-        return null;
+        return freePositions; // Devolver las posiciones encontradas
     }
-
-    // Obtener todos los bloques asignados a un archivo
-    public SimpleList<BlockPosition> getAllFileBlockPositions(OurFile file) {
+    
+    //Codigo para "Defragmentar" el almacenamiento
+    public void defragmentStorage(){
+        this.storageMatrix = new OurData[this.storageSize][this.storageSize];
+        this.availableStorage = this.storageSize;
         
-        SimpleList<BlockPosition> positions = new SimpleList<>();
-
-        for (int i = 0; i < this.storageSize; i++) {
-            for (int j = 0; j < this.storageSize; j++) {
-                if (this.blocks[i][j] != null && this.blocks[i][j].getFather() == file) {
-                    positions.addAtTheEnd(new BlockPosition(i, j, this.blocks[i][j].getDataNumber()));
-                }
-            }
+        SimpleNode<OurFile> auxNode = this.getFileList().getpFirst();
+        while(auxNode != null){
+            OurFile file = auxNode.getData();
+            this.allocateBlocks(file);
+            auxNode = auxNode.getpNext();
         }
-
-        // Ordenar por número de datos para mantener el orden lógico
-        // Esto es una simplificación - necesitarías implementar el ordenamiento
-        return positions;
+        
     }
-
+    
     /**
      * @return the storageSize
      */
@@ -148,31 +147,47 @@ public class Storage {
     }
 
     /**
-     * @return the blocks
+     * @return the storageMatrix
      */
-    public Data[][] getBlocks() {
-        return blocks;
+    public OurData[][] getBlocks() {
+        return storageMatrix;
     }
 
     /**
-     * @param blocks the blocks to set
+     * @param blocks the storageMatrix to set
      */
-    public void setBlocks(Data[][] blocks) {
-        this.blocks = blocks;
+    public void setBlocks(OurData[][] blocks) {
+        this.storageMatrix = blocks;
     }
 
-    /**
-     * @return the occupied
-     */
-    public boolean[][] getOccupied() {
-        return occupied;
+    private boolean isIndexOccupied(int i, int j) {
+        return this.storageMatrix[i][j] == null;
     }
 
-    /**
-     * @param occupied the occupied to set
-     */
-    public void setOccupied(boolean[][] occupied) {
-        this.occupied = occupied;
+    public OurData[][] getStorageMatrix() {
+        return storageMatrix;
     }
+
+    public void setStorageMatrix(OurData[][] storageMatrix) {
+        this.storageMatrix = storageMatrix;
+    }
+
+    public int getAvailableStorage() {
+        return availableStorage;
+    }
+
+    public void setAvailableStorage(int availableStorage) {
+        this.availableStorage = availableStorage;
+    }
+
+    public SimpleList<OurFile> getFileList() {
+        return fileList;
+    }
+
+    public void setFileList(SimpleList<OurFile> fileList) {
+        this.fileList = fileList;
+    }
+    
+    
 
 }

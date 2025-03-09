@@ -46,7 +46,7 @@ public class Directory {
         // Eliminar todos los archivos
         while (!files.isEmpty()) {
             OurFile file = this.files.getValueByIndex(0);
-            Storage.getInstance().freeBlocks(file);
+            Storage.getInstance().deleteFile(file);
             this.files.deleteByIndex(0);
         }
 

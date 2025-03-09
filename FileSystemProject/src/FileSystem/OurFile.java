@@ -4,6 +4,7 @@
  */
 package FileSystem;
 
+import EDD.OurQueue;
 import EDD.SimpleList;
 
 /**
@@ -12,8 +13,8 @@ import EDD.SimpleList;
  */
 public class OurFile {
 
-    private int size;                   //Vamos a trabajar los tamayos como ints para poder meterlos en bloques
-    private SimpleList<Data> dataNodes; //Lista de nodos que tienen la data
+    private int size;                       //Vamos a trabajar los tamayos como ints para poder meterlos en bloques
+    private SimpleList<OurData> dataNodes;     //Lista de nodos que tienen la data
     private String name;
 
     public OurFile(int size, String name) {
@@ -23,39 +24,17 @@ public class OurFile {
 
     }
 
-    public SimpleList<Data> generateDataNodes(int size) {
+    private SimpleList<OurData> generateDataNodes(int size) {
 
-        SimpleList<Data> dataNodes = new SimpleList<>();
+        SimpleList<OurData> dataNodes = new SimpleList<OurData>();
         for (int i = 0; i < size; i++) {
-            Data newNode = new Data(i);
+            OurData newNode = new OurData(i);
             newNode.setFather(this);
             dataNodes.addAtTheEnd(newNode);
         }
 
         return dataNodes;
 
-    }
-
-    public String getBlockChain() {
-        Storage storage = Storage.getInstance();
-        SimpleList<BlockPosition> positions = storage.getAllFileBlockPositions(this);
-
-        StringBuilder chain = new StringBuilder();
-        for (int i = 0; i < positions.getSize(); i++) {
-            BlockPosition pos = positions.getValueByIndex(i);
-            chain.append("(").append(pos.getRow()).append(",").append(pos.getCol()).append(")");
-            if (i < positions.getSize() - 1) {
-                chain.append(" → ");
-            }
-        }
-
-        return chain.toString();
-    }
-
-    // Saber la posicion del primer bloque
-    public BlockPosition getFirstBlock() {
-        Storage storage = Storage.getInstance();
-        return storage.getFirstBlockPosition(this);
     }
 
     public int getSize() {
@@ -66,11 +45,11 @@ public class OurFile {
         this.size = size;
     }
 
-    public SimpleList<Data> getDataNodes() {
+    public SimpleList<OurData> getDataNodes() {
         return dataNodes;
     }
 
-    public void setDataNodes(SimpleList<Data> dataNodes) {
+    public void setDataNodes(SimpleList<OurData> dataNodes) {
         this.dataNodes = dataNodes;
     }
 

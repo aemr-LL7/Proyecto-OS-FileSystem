@@ -153,7 +153,7 @@ public class FileSystemManager {
         }
 
         // Vacia los bloques, elimina de FAT
-        Storage.getInstance().freeBlocks(fileToDelete);
+        Storage.getInstance().deleteFile(fileToDelete);
         getFat().removeEntry(fileToDelete);
 
         // Lo saca del directorio
@@ -452,7 +452,7 @@ public class FileSystemManager {
     public String printStorageStats() {
         Storage storage = Storage.getInstance();
         int totalBlocks = storage.getStorageSize() * storage.getStorageSize();
-        int availableBlocks = storage.getAvailableBlocks();
+        int availableBlocks = storage.countAvailableBlocks();
         int usedBlocks = totalBlocks - availableBlocks;
 
         double usedPercentage = (double) (usedBlocks / totalBlocks) * 100;
