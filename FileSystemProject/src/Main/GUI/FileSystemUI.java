@@ -315,17 +315,15 @@ public class FileSystemUI extends javax.swing.JFrame {
                 }
             }
         } else if (nodeParentObject instanceof OurFile) {
-            // Show an error if trying to create a file inside another file
             JOptionPane.showMessageDialog(this, "Archivos no pueden contener otros archivos. Por favor selecciones un directorio.", "Creacion de Archivos fallida", JOptionPane.ERROR_MESSAGE);
         } else {
-            // For any other case, show generic error
             JOptionPane.showMessageDialog(this, "Los archivos solo pueden ser creados dentro de directorios.", "Error al crear Archivo", JOptionPane.ERROR_MESSAGE);
         }
     }
 
     private void renameAction() {
         // Obtener el nodo seleccionado como padre
-        DefaultTreeModel treeModel = (DefaultTreeModel) this.fileSystemTree.getModel();
+        // DefaultTreeModel treeModel = (DefaultTreeModel) this.fileSystemTree.getModel();
         DefaultMutableTreeNode selectedParentNode = (DefaultMutableTreeNode) this.fileSystemTree.getLastSelectedPathComponent();
 
         if (selectedParentNode == null) {
@@ -366,7 +364,47 @@ public class FileSystemUI extends javax.swing.JFrame {
     }
 
     private void deleteAction() {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        System.out.println("current path: " + currentPath);
+        // Obtener el nodo seleccionado como padre
+        // DefaultTreeModel treeModel = (DefaultTreeModel) this.fileSystemTree.getModel();
+        DefaultMutableTreeNode selectedParentNode = (DefaultMutableTreeNode) this.fileSystemTree.getLastSelectedPathComponent();
+
+        if (selectedParentNode == null) {
+            JOptionPane.showMessageDialog(this, "Por favor seleccione un directorio valido para ser eliminado.", "Sin Selección", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        Object nodeParentObject = selectedParentNode.getUserObject();
+
+        int reply = JOptionPane.showConfirmDialog(this, "¿Estas seguro que quieres eliminar el elemento seleccionado?", "Eliminar un Archivo", JOptionPane.YES_NO_OPTION);
+        if (reply == JOptionPane.YES_OPTION) {
+            // Verificar si el nodo seleccionado es un directorio o un archivo
+            if (nodeParentObject instanceof Directory) {
+                // Eliminar el directorio (se debe verificar si recursivo o directorio unico)
+                boolean supressionSuccess = fsManager.deleteDirectory(currentPath);
+                if (!supressionSuccess) {
+                    JOptionPane.showMessageDialog(this, "No se pudo eliminar el directorio. Verifique la operacion.", "Error al Renombrar", JOptionPane.ERROR_MESSAGE);
+                }
+                // Actualizar la interfaz grafica
+                this.updateFilesTable();
+
+            } else if (nodeParentObject instanceof OurFile) {
+                // Renombrar archivo
+                boolean supressionSuccess = fsManager.deleteFile(currentPath);
+                if (!supressionSuccess) {
+                    JOptionPane.showMessageDialog(this, "No se pudo eliminar el archivo. Verifique la operacion.", "Error al Renombrar", JOptionPane.ERROR_MESSAGE);
+                }
+                // Actualizar la interfaz gráfica
+                this.updateFilesTable();
+
+            } else {
+                JOptionPane.showMessageDialog(this, "Solo se pueden modificar archivos y directorios.", "Error al Eliminar", JOptionPane.ERROR_MESSAGE);
+            }
+        } else {
+            JOptionPane.showMessageDialog(null, "Operacion cancelada...");
+            return;
+        }
+
     }
 
     private void moveAction() {
