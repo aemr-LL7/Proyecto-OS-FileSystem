@@ -26,7 +26,7 @@ public class OurFile {
 
     private SimpleList<OurData> generateDataNodes(int size) {
 
-        SimpleList<OurData> dataNodes = new SimpleList<OurData>();
+        SimpleList<OurData> dataNodes = new SimpleList<>();
         for (int i = 0; i < size; i++) {
             OurData newNode = new OurData(i);
             newNode.setFather(this);
@@ -34,7 +34,18 @@ public class OurFile {
         }
 
         return dataNodes;
+    }
 
+    public String getFirstBlockAddress() {
+        if (dataNodes.isEmpty()) {
+            return "N/A";  // No hay bloques asignados
+        }
+
+        // Obtener el primer nodo de datos
+        OurData firstDataNode = dataNodes.getValueByIndex(0);
+
+        // Devolver la posición del primer bloque
+        return "row, col: [" + firstDataNode.getIndexRow() + ", " + firstDataNode.getIndexCol() + "]";
     }
 
     public int getSize() {
@@ -60,5 +71,4 @@ public class OurFile {
     public void setName(String name) {
         this.name = name;
     }
-
 }

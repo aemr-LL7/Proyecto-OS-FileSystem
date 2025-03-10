@@ -4,12 +4,9 @@
  */
 package Main.GUI;
 
-import EDD.SimpleList;
+import EDD.OurHashTable;
 import FileSystem.Directory;
-import FileSystem.FileAllocationTable;
-import FileSystem.FileAllocationTable.FileTableEntry;
 import FileSystem.OurFile;
-import FileSystem.Storage;
 import Managers.FileSystemManager;
 import java.awt.Color;
 import java.awt.Component;
@@ -20,10 +17,8 @@ import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPopupMenu;
 import javax.swing.JTable;
-import javax.swing.SwingUtilities;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
-import javax.swing.table.TableColumn;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreePath;
@@ -36,11 +31,11 @@ public class FileSystemUI extends javax.swing.JFrame {
 
     private static FileSystemUI fileSystemUiInstance;
     private final FileSystemManager fsManager;
-    private String rootPath = "/root";
+    //private String rootPath = "/root";
     private String currentPath = "";
 
     private JPopupMenu contextMenu;
-    private DefaultTableModel tableFilesModel;
+    private final DefaultTableModel tableFilesModel;
 
     // parametros a considerar
     /**
@@ -62,7 +57,8 @@ public class FileSystemUI extends javax.swing.JFrame {
 
         // Iniciar tabla de archivos
         tableFilesModel = new DefaultTableModel(new String[]{"Nombre de Archivo", "Bloques Asignados", "Primer Espacio de Bloque"}, 0);
-        
+        filesJTable.setModel(tableFilesModel);  // Vincular el modelo a la JTable
+
         // Initial updates
         this.updateFilesTable();
         this.setupContextMenu();
@@ -78,25 +74,26 @@ public class FileSystemUI extends javax.swing.JFrame {
     }
 
     private void updateFilesTable() {
+        tableFilesModel.setRowCount(0); // Limpiar la tabla
 
-        tableFilesModel.setRowCount(0);
+        OurHashTable<OurFile> fileTable = this.fsManager.getStorage().getFileTable();
 
-        FileAllocationTable fat = this.fsManager.getFat();
-        SimpleList<FileTableEntry> entries = fat.getEntries();
-
-        for (int i = 0; i < entries.getSize(); i++) {
-            FileTableEntry entry = entries.getValueByIndex(i);
-
-            // GInformacion del archivo
-            String fileName = entry.getFileName();
-            int blocksAllocated = entry.getBlocksAllocated();
-            String firstBlockAddress = entry.getFirstBlockAddress();
+        for (int i = 0; i < fileTable.getEntriesList().getSize(); i++) {
+            OurFile file = fileTable.getEntriesList().getValueByIndex(i);
+            // Verificar si el archivo es nulo
+            if (file == null) {
+                System.out.println("Archivo nulo encontrado en la tabla de archivos.");
+                continue;
+            }
+            // Obtener información del archivo
+            String fileName = file.getName();
+            int blocksAllocated = file.getSize();
+            String firstBlockAddress = file.getFirstBlockAddress();
 
             tableFilesModel.addRow(new String[]{fileName, String.valueOf(blocksAllocated), firstBlockAddress});
-            this.filesJTable.setModel(tableFilesModel);
         }
 
-        // Apply custom cell renderer for the filename column
+        // Aplicar el renderizado personalizado para la columna de nombres de archivo
         filesJTable.getColumnModel().getColumn(0).setCellRenderer(new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
@@ -105,7 +102,6 @@ public class FileSystemUI extends javax.swing.JFrame {
                 if (!isSelected) {
                     String fileName = (String) value;
                     Color fileColor = generateFileColor(fileName);
-
                     cell.setForeground(fileColor);
                 }
 
@@ -113,7 +109,8 @@ public class FileSystemUI extends javax.swing.JFrame {
             }
         });
 
-        // Refresh the table UI
+        // Refrescar la tabla
+        filesJTable.revalidate();
         filesJTable.repaint();
     }
 
@@ -166,17 +163,24 @@ public class FileSystemUI extends javax.swing.JFrame {
     }
 
     private void setupListeners() {
-
         fileSystemTree.addTreeSelectionListener(e -> {
             TreePath selectionPath = fileSystemTree.getSelectionPath();
-            System.out.println(selectionPath);
             if (selectionPath != null) {
                 StringBuilder pathBuilder = new StringBuilder("/root");
-                // Para evitar tocar la raiz se inicia desde 1
+                // Para evitar tocar la raíz, se inicia desde 1
                 for (int i = 1; i < selectionPath.getPathCount(); i++) {
-                    pathBuilder.append("/").append(selectionPath.getPathComponent(i).toString().split(" ")[0]);
+                    DefaultMutableTreeNode node = (DefaultMutableTreeNode) selectionPath.getPathComponent(i);
+                    Object userObject = node.getUserObject();
+                    if (userObject instanceof Directory) {
+                        Directory dir = (Directory) userObject;
+                        pathBuilder.append("/").append(dir.getName());
+                    } else if (userObject instanceof OurFile) {
+                        OurFile file = (OurFile) userObject;
+                        pathBuilder.append("/").append(file.getName());
+                    }
                 }
                 this.currentPath = pathBuilder.toString();
+                System.out.println("Current Path: " + this.currentPath); // Para depuración
             }
         });
 
@@ -232,18 +236,20 @@ public class FileSystemUI extends javax.swing.JFrame {
             if (directoryName != null && !directoryName.trim().isEmpty()) {
                 Directory parentDir = (Directory) nodeParentObject;
 
+                // Crear el nuevo directorio
                 Directory newDir = new Directory(directoryName, parentDir);
+
+                // Añadir el nuevo directorio al directorio padre
                 parentDir.addSubdirectory(newDir);
 
-                // Añadir nuevo directorio al MODELO del jtree
+                // Añadir el nuevo directorio al JTree
                 DefaultMutableTreeNode newNode = new DefaultMutableTreeNode(newDir);
                 treeModel.insertNodeInto(newNode, selectedParentNode, selectedParentNode.getChildCount());
 
+                // Expandir el nodo padre en el JTree
                 this.fileSystemTree.expandPath(new TreePath(selectedParentNode.getPath()));
 
-                System.out.println("WE MADE IT DIRECTORY NOW");
-                // Se actualiza automaticamente la UI
-                this.updateFilesTable();
+                System.out.println("Directorio creado exitosamente: " + directoryName);
             }
         } else {
             JOptionPane.showMessageDialog(this,
@@ -253,23 +259,22 @@ public class FileSystemUI extends javax.swing.JFrame {
         }
     }
 
-    // Method to handle file creation
+    // Metodo refactorizado de creacion de archivos
     private void createFileAction() {
+
+        System.out.println("current path: " + currentPath);
         // Obtener el nodo seleccionado como padre
         DefaultTreeModel treeModel = (DefaultTreeModel) this.fileSystemTree.getModel();
         DefaultMutableTreeNode selectedParentNode = (DefaultMutableTreeNode) this.fileSystemTree.getLastSelectedPathComponent();
 
         if (selectedParentNode == null) {
-            JOptionPane.showMessageDialog(this,
-                    "Por favor seleccione un directorio donde quiere crear una carpeta.",
-                    "Sin Selección",
-                    JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Por favor seleccione un directorio donde quiere crear una carpeta.", "Sin Selección", JOptionPane.WARNING_MESSAGE);
             return;
         }
 
-        Object nodeObject = selectedParentNode.getUserObject();
+        Object nodeParentObject = selectedParentNode.getUserObject();
 
-        if (nodeObject instanceof Directory) {
+        if (nodeParentObject instanceof Directory) {
 
             String fileName = JOptionPane.showInputDialog(this, "Ingrese el nombre del archivo::", "Crear Archivo", JOptionPane.QUESTION_MESSAGE);
 
@@ -280,22 +285,21 @@ public class FileSystemUI extends javax.swing.JFrame {
                     int size = Integer.parseInt(sizeStr);
                     OurFile newFile = new OurFile(size, fileName);
 
-                    boolean allocated = Storage.getInstance().allocateBlocks(newFile);
+                    boolean allocationSuccess = this.fsManager.getStorage().allocateBlocks(newFile);
 
-                    if (allocated) {
-                        Directory parentDir = (Directory) nodeObject;
-
+                    if (allocationSuccess) {
+                        this.fsManager.getStorage().printStorageMatrix();
+                        // Añadir el archivo al directorio padre
+                        Directory parentDir = (Directory) nodeParentObject;
                         parentDir.addFile(newFile);
 
-                        FileAllocationTable fat = this.fsManager.getFat();
-                        fat.addEntry(newFile);
-
+                        // Añadir aal JTREE
                         DefaultMutableTreeNode newNode = new DefaultMutableTreeNode(newFile);
                         treeModel.insertNodeInto(newNode, selectedParentNode, selectedParentNode.getChildCount());
-
                         this.fileSystemTree.expandPath(new TreePath(selectedParentNode.getPath()));
                         this.updateFilesTable();
-                        System.out.println("WE MADE IT NEW FILES NOW");
+
+                        System.out.println("Archivo creado exitosamente: " + fileName);
 
                     } else {
                         JOptionPane.showMessageDialog(this,
@@ -310,23 +314,55 @@ public class FileSystemUI extends javax.swing.JFrame {
                             JOptionPane.ERROR_MESSAGE);
                 }
             }
-        } else if (nodeObject instanceof OurFile) {
+        } else if (nodeParentObject instanceof OurFile) {
             // Show an error if trying to create a file inside another file
-            JOptionPane.showMessageDialog(this,
-                    "Archivos no pueden contener otros archivos. Por favor selecciones un directorio.",
-                    "Creacion de Archivos fallida",
-                    JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Archivos no pueden contener otros archivos. Por favor selecciones un directorio.", "Creacion de Archivos fallida", JOptionPane.ERROR_MESSAGE);
         } else {
             // For any other case, show generic error
-            JOptionPane.showMessageDialog(this,
-                    "Los archivos solo pueden ser creados dentro de directorios.",
-                    "Error al crear Archivo",
-                    JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Los archivos solo pueden ser creados dentro de directorios.", "Error al crear Archivo", JOptionPane.ERROR_MESSAGE);
         }
     }
 
     private void renameAction() {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        // Obtener el nodo seleccionado como padre
+        DefaultTreeModel treeModel = (DefaultTreeModel) this.fileSystemTree.getModel();
+        DefaultMutableTreeNode selectedParentNode = (DefaultMutableTreeNode) this.fileSystemTree.getLastSelectedPathComponent();
+
+        if (selectedParentNode == null) {
+            JOptionPane.showMessageDialog(this, "Por favor seleccione un directorio donde quiere crear una carpeta.", "Sin Selección", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        Object nodeParentObject = selectedParentNode.getUserObject();
+
+        // Solicitar el nuevo nombre
+        String newName = JOptionPane.showInputDialog(this, "Ingrese el nuevo nombre:", "Renombrar", JOptionPane.QUESTION_MESSAGE);
+
+        if (newName == null || newName.trim().isEmpty()) {
+            JOptionPane.showMessageDialog(this, "El nombre no puede estar vacío.", "Nombre Inválido", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        // Verificar si el nodo seleccionado es un directorio o un archivo
+        if (nodeParentObject instanceof Directory) {
+            // Renombrar directorio
+            boolean success = fsManager.renameDirectory(currentPath, newName);
+            if (!success) {
+                JOptionPane.showMessageDialog(this, "No se pudo renombrar el directorio. Verifique que el nombre no esté duplicado.", "Error al Renombrar", JOptionPane.ERROR_MESSAGE);
+            }
+            // Actualizar la interfaz grafica
+            this.updateFilesTable();
+        } else if (nodeParentObject instanceof OurFile) {
+            // Renombrar archivo
+            boolean success = fsManager.renameFile(currentPath, newName);
+            if (!success) {
+                JOptionPane.showMessageDialog(this, "No se pudo renombrar el archivo. Verifique que el nombre no esté duplicado.", "Error al Renombrar", JOptionPane.ERROR_MESSAGE);
+
+            }   // Actualizar la interfaz gráfica
+            this.updateFilesTable();
+        } else {
+            JOptionPane.showMessageDialog(this, "Solo se pueden renombrar archivos y directorios.", "Error al Renombrar", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private void deleteAction() {

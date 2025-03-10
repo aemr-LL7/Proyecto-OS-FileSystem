@@ -24,6 +24,7 @@ public class Storage {
         this.storageSize = 6;
         this.storageMatrix = new OurData[6][6];
         this.availableStorage = storageSize * storageSize;
+        this.fileTable = new OurHashTable<>();
     }
 
     public static synchronized Storage getInstance() {
@@ -34,19 +35,19 @@ public class Storage {
     }
 
     // Asignar bloques a un archivo usando asignacion encadenada
-    public void allocateBlocks(OurFile file) {
+    public boolean allocateBlocks(OurFile file) {
         int blocksNeeded = file.getSize();
         String key = file.getName();
 
         // Verificar si hay suficientes bloques disponibles
         if (this.availableStorage < blocksNeeded) {
             System.out.println("Epa no tengo espacio papa");
-            return;
+            return false;
         }
 
         if (this.fileTable.isKeyTaken(key)) {
             System.out.println("Epa ese nombre esta tomado");
-            return;
+            return false;
         }
 
         //Matriz temporal para guardar las posiciones donde se hara la insercion, siempre vuelve como una matriz de nx2
@@ -64,6 +65,7 @@ public class Storage {
 
         this.fileTable.put(key, file);
         this.availableStorage -= blocksNeeded;
+        return true;
     }
 
     // Liberar bloques de un archivo (Probablemente haya que buscar otra forma de referenciar el objeto archivo aca desde la UI)
@@ -110,7 +112,7 @@ public class Storage {
         // Recorrer la matriz para encontrar posiciones vacías
         for (int i = 0; i < storageSize; i++) {
             for (int j = 0; j < storageSize; j++) {
-                if (!this.isIndexOccupied(i, j)) {
+                if (this.storageMatrix[i][j] == null) {
                     freePositions[freeCount][0] = i; // Fila
                     freePositions[freeCount][1] = j; // Columna
                     freeCount++;
@@ -122,7 +124,7 @@ public class Storage {
                 }
             }
         }
-        return freePositions; // Devolver las posiciones encontradas
+        return null; // Si no se encontraron posiciones libres va nullo
     }
 
     //Codigo para "Defragmentar" el almacenamiento
@@ -138,10 +140,25 @@ public class Storage {
         }
 
     }
-    
+
     //Hacer metodo para que funcione el cambiar de nombre. Necesitamos poderle llegar al archivo y cambiarle el nombre y ya xd
-    public void modifyFile(OurFile file, String newName){
-        
+    public void modifyFile(OurFile file, String newName) {
+
+    }
+
+    public void printStorageMatrix() {
+        System.out.println("Estado actual de la matriz de almacenamiento:");
+        for (int i = 0; i < storageMatrix.length; i++) {
+            for (int j = 0; j < storageMatrix[i].length; j++) {
+                OurData data = storageMatrix[i][j];
+                if (data != null) {
+                    System.out.print("[" + data.getFather().getName() + "] ");
+                } else {
+                    System.out.print("[ ] ");
+                }
+            }
+            System.out.println();
+        }
     }
 
     /**
