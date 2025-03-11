@@ -141,11 +141,6 @@ public class Storage {
 
     }
 
-    //Hacer metodo para que funcione el cambiar de nombre. Necesitamos poderle llegar al archivo y cambiarle el nombre y ya xd
-    public void modifyFile(OurFile file, String newName) {
-
-    }
-
     public void printStorageMatrix() {
         System.out.println("Estado actual de la matriz de almacenamiento:");
         for (int i = 0; i < storageMatrix.length; i++) {
@@ -159,6 +154,27 @@ public class Storage {
             }
             System.out.println();
         }
+    }
+
+    public int[][] getFileBlockPositions(OurFile file) {
+        SimpleList<int[]> positionsList = new SimpleList<>();
+
+        // Buscar las posiciones de los bloques asignados al archivo en la matriz
+        for (int i = 0; i < storageSize; i++) {
+            for (int j = 0; j < storageSize; j++) {
+                if (storageMatrix[i][j] != null && storageMatrix[i][j].getFather() == file) {
+                    positionsList.addAtTheEnd(new int[]{i, j});
+                }
+            }
+        }
+
+        // Convertir la lista a un array
+        int[][] positions = new int[positionsList.getSize()][2];
+        for (int i = 0; i < positionsList.getSize(); i++) {
+            positions[i] = positionsList.getValueByIndex(i);
+        }
+
+        return positions;
     }
 
     /**
