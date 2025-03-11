@@ -1,0 +1,15 @@
+{
+  "/root": {
+    "subdirectories": [],
+    "files": [
+      {
+        "name": "my new file",
+        "size": 12
+      },
+      {
+        "name": "mi nombre",
+        "size": 8
+      }
+    ]
+  }
+}

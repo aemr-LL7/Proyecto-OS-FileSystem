@@ -6,9 +6,13 @@ package Managers;
 
 import EDD.OurHashTable;
 import EDD.SimpleList;
+import FileSystem.Directory;
+import FileSystem.OurFile;
+import FileSystem.Storage;
 import Main.GUI.FileSystemUI;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -31,8 +35,8 @@ import javax.swing.JOptionPane;
 public class FileManager {
 
     private final String SAVED_DIRECTORY = ".saved";
-    private File configFile;
-    private File processDataFile;
+    private File logFile;
+    private File fileSystemDataFile;
     private final Gson gson;
 
     public FileManager() {
@@ -51,17 +55,17 @@ public class FileManager {
                 System.out.println("Carpeta .saved creada en el directorio raiz");
             }
 
-            this.configFile = new File(savedDirectoryPath.toFile(), "simulation_config.txt");
-            this.processDataFile = new File(savedDirectoryPath.toFile(), "process_data.json");
+            this.logFile = new File(savedDirectoryPath.toFile(), "system_logs.txt");
+            this.fileSystemDataFile = new File(savedDirectoryPath.toFile(), "filesystem_data.json");
 
-            if (!configFile.exists()) {
-                configFile.createNewFile();
-                System.out.println("Archivo simulation_config.txt creado");
+            if (!logFile.exists()) {
+                logFile.createNewFile();
+                System.out.println("Archivo system_logs.txt creado");
             }
 
-            if (!processDataFile.exists()) {
-                processDataFile.createNewFile();
-                System.out.println("Archivo process_data.json creado");
+            if (!fileSystemDataFile.exists()) {
+                fileSystemDataFile.createNewFile();
+                System.out.println("Archivo filesystem_data.json creado");
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -69,191 +73,137 @@ public class FileManager {
         }
     }
 
-    public void loadSimulationData(SimulationUI ui, OurHashTable processTable) {
-        // Primero verificar si hay datos existentes
-        boolean hasExistingData = this.checkExistingData(ui, processTable);
-
-        if (hasExistingData) {
-            int option = JOptionPane.showConfirmDialog(null,
-                    "Existen datos cargados en el sistema. ¿Desea sobreescribirlos?",
-                    "Datos existentes",
-                    JOptionPane.YES_NO_OPTION);
-
-            if (option != JOptionPane.YES_OPTION) {
-                return;
-            }
-
-            // Limpiar datos existentes
-            this.clearExistingData(ui, processTable);
-        }
-
-        // Cargar configuración del archivo txt
-        this.loadConfigFile(ui);
-
-        // Cargar procesos del archivo JSON
-        this.loadProcessesFile(processTable, ui.getOperatingSystem().getQueueManager());
+    // Verificar si hay subdirectorios o archivos en el directorio raiz
+    private boolean hasExistingData(Directory rootDirectory) {
+        return rootDirectory.getSubdirectories().getSize() > 0 || rootDirectory.getFiles().getSize() > 0;
     }
 
-    private void loadConfigFile(SimulationUI ui) {
-        try {
-            String content = this.readFile(configFile);
-            if (content.isEmpty()) {
-                JOptionPane.showMessageDialog(null,
-                        "El archivo de configuración está vacío.",
-                        "Error",
-                        JOptionPane.WARNING_MESSAGE);
-                return;
-            }
+    private boolean confirmLoadOperation() {
+        int option = JOptionPane.showConfirmDialog(null, "El sistema ya tiene datos. ¿Desea cargar nueva información? (Se perderán los datos actuales)", "Datos Existentes",
+                JOptionPane.YES_NO_OPTION);
 
-            String[] lines = content.split("\n");
-            boolean inGeneralParams = false;
-
-            for (String line : lines) {
-                line = line.trim();
-
-                if (line.equals("[General Params]")) {
-                    inGeneralParams = true;
-                    continue;
-                }
-
-                if (inGeneralParams && !line.startsWith("[")) {
-                    if (line.startsWith("CycleDuration=")) {
-                        int cycleDuration = Integer.parseInt(line.split("=")[1].trim());
-                        ui.setCycleDuration(cycleDuration);
-                        ui.getOperatingSystem().getSystemClock().setCycleDuration(cycleDuration);
-
-                    } else if (line.startsWith("NumberOfCpus=")) {
-                        int numCpus = Integer.parseInt(line.split("=")[1].trim());
-                        ui.setNumCPUs(numCpus);
-                        ui.getOperatingSystem().getSystemClock().setPermissionsRequired(numCpus);
-                        ui.getOperatingSystem().initCpuforUI(numCpus);
-
-                    } else if (line.startsWith("NumberOfProcesses=")) {
-                        int numProcesses = Integer.parseInt(line.split("=")[1].trim());
-                        ui.setNumProcesses(numProcesses);
-                    }
-                }
-            }
-
-            // Actualizar la UI con los nuevos valores
-            ui.updateCPUList();
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(null,
-                    "Error al cargar el archivo de configuración: " + e.getMessage(),
-                    "Error",
-                    JOptionPane.ERROR_MESSAGE);
-        }
+        return option == JOptionPane.YES_OPTION;
     }
 
-    private void loadProcessesFile(OurHashTable processTable, QueueManager queueManager) {
-        try {
-            String content = this.readFile(processDataFile);
-            if (content.isEmpty()) {
-                JOptionPane.showMessageDialog(null,
-                        "El archivo de procesos está vacío.",
-                        "Error",
-                        JOptionPane.WARNING_MESSAGE);
-                return;
+    public Directory loadFileSystem(Directory rootDirectory, Storage actualStorage, OurHashTable<OurFile> fileTable) {
+
+        if (this.hasExistingData(rootDirectory)) {
+
+            if (!confirmLoadOperation()) {
+                return null;
             }
 
-            // Convertir el string a un objeto JSON e iterar para crear pcbs y proceso, añadir a la hash
+            // Limpiar los datos existentes
+            this.clearExistingData(rootDirectory, fileTable);
+        }
+
+        try {
+            String content = this.readFile(this.fileSystemDataFile);
+            if (content.isEmpty()) {
+                JOptionPane.showMessageDialog(null, "El archivo de sistema de archivos está vacío.", "Error", JOptionPane.WARNING_MESSAGE);
+                return null;
+            }
+
+            // Convertir el string a un objeto JSON
             JsonParser jsonParser = new JsonParser();
-            JsonObject jsonObj = jsonParser.parse(content).getAsJsonObject();
+            JsonObject rootJson = jsonParser.parse(content).getAsJsonObject();
 
-            // Iterar sobre las entradas
-            for (String processName : jsonObj.keySet()) {
-                // Obtener el objeto JSON asociado al nombre del proceso
-                JsonObject pcbJson = jsonObj.get(processName).getAsJsonObject();
+            // Deserializar la estructura jerarquica
+            this.deserializeDirectory(rootJson.get("/root").getAsJsonObject(), rootDirectory, actualStorage, fileTable);
 
-                // Crear un nuevo PCB desde el JSON
-                PCB pcb = gson.fromJson(pcbJson, PCB.class);
-
-                // Crear un nuevo proceso con el PCB
-                OurProcess process = new OurProcess(pcb);
-
-                // Agregar el proceso a la tabla hash y las colas de listos
-                processTable.put(pcb.getId(), process);
-                queueManager.addToReadyQueue(pcb);
-            }
+            return rootDirectory;
 
         } catch (Exception e) {
             e.printStackTrace();
-            JOptionPane.showMessageDialog(null,
-                    "Error al cargar el archivo de procesos: " + e.getMessage(),
-                    "Error",
-                    JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(null, "Error al cargar la estructura del sistema de archivos: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            return null;
         }
     }
 
-    private boolean checkExistingData(SimulationUI ui, OurHashTable<OurProcess> processTable) {
-        return ui.getNumCPUs() > 0 || processTable.getEntriesList().getSize() > 0;
+    // Limpiar subdirectorios y archivos del directorio raiz
+    private void clearExistingData(Directory rootDirectory, OurHashTable<OurFile> fileTable) {
+
+        rootDirectory.getSubdirectories().wipeList();
+        rootDirectory.getFiles().wipeList();
+
+        // Limpiar la tabla de archivos
+        fileTable.clear();
     }
 
-    private void clearExistingData(SimulationUI ui, OurHashTable<OurProcess> processTable) {
-        // Limpiar la UI
-        ui.clearAllFields();
+    public void saveFileSystem(Directory rootDirectory) {
+        try (Writer writer = new FileWriter(this.fileSystemDataFile)) {
+            // Crear un objeto JSON para representar la estructura jerárquica
+            JsonObject rootJson = new JsonObject();
+            serializeDirectory(rootDirectory, rootJson);
 
-        // Limpiar la tabla hash
-        processTable.clear();
-    }
-
-    public void saveSimulationConfig(int cycleDuration, int numberOfCpus, int numberOfProcesses) {
-        String configContent = "[General Params]\n"
-                + "CycleDuration=" + cycleDuration + "\n"
-                + "NumberOfCpus=" + numberOfCpus + "\n"
-                + "NumberOfProcesses=" + numberOfProcesses + "\n\n"
-                + "[CPUS]\n";
-
-        for (int i = 0; i < numberOfCpus; i++) {
-            configContent += "cpuId=" + i + "\n";
-        }
-
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(configFile))) {
-            writer.write(configContent);
-            System.out.println("Configuración guardada en " + configFile.getPath());
-        } catch (IOException e) {
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(null, "Error al guardar la configuración.", "Error", JOptionPane.ERROR_MESSAGE);
-        }
-    }
-
-    public void saveProcessData(OurHashTable<OurProcess> processHashTable, int numberOfCpus) {
-        try (Writer writer = new FileWriter(processDataFile)) {
-            StringBuilder jsonBuilder = new StringBuilder();
-            jsonBuilder.append("{\n");
-
-            SimpleList<OurProcess> processList = processHashTable.getEntriesList();
-
-            for (int i = 0; i < processList.getSize(); i++) {
-                OurProcess process = processList.getValueByIndex(i);
-                if (process != null) {
-                    PCB pcb = process.getPcb();
-
-                    // Agregar el nombre del proceso como clave
-                    jsonBuilder.append("  \"").append(pcb.getId()).append("\": ");
-
-                    String pcbJson = gson.toJson(pcb);
-                    jsonBuilder.append(pcbJson);
-
-                    // Agregar coma si no es el último elemento
-                    if (i < processList.getSize() - 1) {
-                        jsonBuilder.append(",");
-                    }
-                    jsonBuilder.append("\n");
-                }
-            }
-
-            jsonBuilder.append("}");
-
-            // Escribir el JSON final
-            writer.write(jsonBuilder.toString());
-            System.out.println("Datos de procesos guardados en " + processDataFile.getPath());
+            // Escribir el JSON en el archivo
+            gson.toJson(rootJson, writer);
+            System.out.println("Estructura del sistema de archivos guardada en " + this.fileSystemDataFile.getPath());
+            JOptionPane.showMessageDialog(null, "Estructura del sistema de archivos guardada en " + this.fileSystemDataFile.getPath(), "Filemanager", JOptionPane.INFORMATION_MESSAGE);
 
         } catch (IOException e) {
             e.printStackTrace();
-            JOptionPane.showMessageDialog(null, "Error al guardar los datos de PCBs.", "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(null, "Error al guardar la estructura del sistema de archivos.", "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void serializeDirectory(Directory directory, JsonObject parentJson) {
+        JsonObject dirJson = new JsonObject();
+
+        // Serializar subdirectorios
+        JsonArray subdirsArray = new JsonArray();
+        SimpleList<Directory> subdirectories = directory.getSubdirectories();
+        for (int i = 0; i < subdirectories.getSize(); i++) {
+            Directory subdir = subdirectories.getValueByIndex(i);
+            JsonObject subdirJson = new JsonObject();
+            this.serializeDirectory(subdir, subdirJson);
+            subdirsArray.add(subdirJson);
+        }
+        dirJson.add("subdirectories", subdirsArray);
+
+        // Serializar archivos
+        JsonArray filesArray = new JsonArray();
+        SimpleList<OurFile> files = directory.getFiles();
+        for (int i = 0; i < files.getSize(); i++) {
+            OurFile file = files.getValueByIndex(i);
+            JsonObject fileJson = new JsonObject();
+            fileJson.addProperty("name", file.getName());
+            fileJson.addProperty("size", file.getSize());
+            filesArray.add(fileJson);
+        }
+        dirJson.add("files", filesArray);
+
+        // Añadir el directorio al JSON padre
+        parentJson.add(directory.getName(), dirJson);
+    }
+
+    private void deserializeDirectory(JsonObject dirJson, Directory parentDirectory, Storage storage, OurHashTable<OurFile> fileTable) {
+        // Deserializar subdirectorios
+        JsonArray subdirsArray = dirJson.getAsJsonArray("subdirectories");
+        for (JsonElement subdirElement : subdirsArray) {
+            JsonObject subdirJson = subdirElement.getAsJsonObject();
+            String subdirName = subdirJson.keySet().iterator().next();
+            Directory subdir = new Directory(subdirName, parentDirectory);
+            parentDirectory.addSubdirectory(subdir);
+            this.deserializeDirectory(subdirJson.getAsJsonObject(subdirName), subdir, storage, fileTable);
+        }
+
+        // Deserializar archivos
+        JsonArray filesArray = dirJson.getAsJsonArray("files");
+        for (JsonElement fileElement : filesArray) {
+
+            JsonObject fileJson = fileElement.getAsJsonObject();
+            String fileName = fileJson.get("name").getAsString();
+            int fileSize = fileJson.get("size").getAsInt();
+
+            // Crear un nuevo archivo (genera los dataNodes segun el tamaño del archivo)
+            OurFile file = new OurFile(fileSize, fileName);
+
+            // Añadir el archivo al directorio y a la tabla de archivos
+            parentDirectory.addFile(file);
+            storage.allocateBlocks(file);
+            fileTable.put(file.getName(), file);
+            
         }
     }
 
@@ -272,32 +222,6 @@ public class FileManager {
             JOptionPane.showMessageDialog(null, "Error al leer el archivo.", "Error", JOptionPane.ERROR_MESSAGE);
         }
         return data.toString();
-    }
-
-    private int[] getGeneralParams(String params) {
-        int[] generalParams = new int[3];
-        boolean inGeneralParams = false;
-
-        String[] lines = params.split("\n");
-        for (String line : lines) {
-            line = line.trim();
-
-            if (line.equals("[General Params]")) {
-                inGeneralParams = true;
-            } else if (line.startsWith("[") && inGeneralParams) {
-                break;
-            } else if (inGeneralParams) {
-                if (line.startsWith("CycleDuration=")) {
-                    generalParams[0] = Integer.parseInt(line.split("=")[1].trim());
-                } else if (line.startsWith("NumberOfCpus=")) {
-                    generalParams[1] = Integer.parseInt(line.split("=")[1].trim());
-                } else if (line.startsWith("NumberOfProcesses=")) {
-                    generalParams[2] = Integer.parseInt(line.split("=")[1].trim());
-                }
-            }
-        }
-
-        return generalParams;
     }
 
 }

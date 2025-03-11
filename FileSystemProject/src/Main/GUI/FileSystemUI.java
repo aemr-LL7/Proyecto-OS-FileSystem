@@ -9,6 +9,7 @@ import EDD.SimpleList;
 import EDD.SimpleNode;
 import FileSystem.Directory;
 import FileSystem.OurFile;
+import Managers.FileManager;
 import Managers.FileSystemManager;
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -45,7 +46,9 @@ import javax.swing.tree.TreePath;
 public class FileSystemUI extends javax.swing.JFrame {
 
     private static FileSystemUI fileSystemUiInstance;
+    // Creacion de managers
     private final FileSystemManager fsManager;
+    private final FileManager fileManager;
     private String currentPath = "";
     private boolean isAdminMode = false;
     private final String ADMIN_PASSWORD = "1236";
@@ -72,12 +75,13 @@ public class FileSystemUI extends javax.swing.JFrame {
 
         // configuraciones
         // Iniciar el filesystem manager
-        fsManager = new FileSystemManager(fileSystemTree);
-        fsManager.updateTree();
+        this.fsManager = new FileSystemManager(fileSystemTree);
+        this.fileManager = new FileManager();
+        this.fsManager.updateTree();
 
         // Iniciar tabla de archivos
-        tableFilesModel = new DefaultTableModel(new String[]{"Nombre de Archivo", "Bloques Asignados", "Primer Espacio de Bloque"}, 0);
-        filesJTable.setModel(tableFilesModel);  // Vincular el modelo a la JTable
+        this.tableFilesModel = new DefaultTableModel(new String[]{"Nombre de Archivo", "Bloques Asignados", "Primer Espacio de Bloque"}, 0);
+        this.filesJTable.setModel(tableFilesModel);  // Vincular el modelo a la JTable
 
         // Initial updates
         this.updateFilesTable();
@@ -746,7 +750,7 @@ public class FileSystemUI extends javax.swing.JFrame {
     private void enableContextMenuEditOptions() {
         // Activamos todas las opciones
         if (this.createDirItem != null) {
-            this.createFileItem.setEnabled(true);
+            this.createDirItem.setEnabled(true);
         }
         if (this.createFileItem != null) {
             this.createFileItem.setEnabled(true);
@@ -959,9 +963,19 @@ public class FileSystemUI extends javax.swing.JFrame {
         fileMenuItem.setText("Archivo");
 
         saveOptionMenuItem.setText("Guardar estado");
+        saveOptionMenuItem.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                saveOptionMenuItemActionPerformed(evt);
+            }
+        });
         fileMenuItem.add(saveOptionMenuItem);
 
         loadOptionMenuItem.setText("Cargar estado");
+        loadOptionMenuItem.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                loadOptionMenuItemActionPerformed(evt);
+            }
+        });
         fileMenuItem.add(loadOptionMenuItem);
 
         mainMenuBar.add(fileMenuItem);
@@ -1019,6 +1033,27 @@ public class FileSystemUI extends javax.swing.JFrame {
             this.requestAdminPassword();
         }
     }//GEN-LAST:event_adminUserItemActionPerformed
+
+    private void saveOptionMenuItemActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_saveOptionMenuItemActionPerformed
+        // TODO add your handling code here:
+        this.fileManager.saveFileSystem(this.fsManager.getRootDirectory());
+
+    }//GEN-LAST:event_saveOptionMenuItemActionPerformed
+
+    private void loadOptionMenuItemActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_loadOptionMenuItemActionPerformed
+        // TODO add your handling code here:
+        Directory newRootDir = this.fileManager.loadFileSystem(this.fsManager.getRootDirectory(), this.fsManager.getStorage(), this.fsManager.getStorage().getFileTable());
+        this.fsManager.setRootDirectory(newRootDir);
+
+        // ACTUALIZAR UI
+        this.fsManager.updateTree();
+        this.updateFilesTable();
+        this.updateBlockStoragePanel();
+        this.updateMoreInfoPanel();
+
+        JOptionPane.showMessageDialog(this, "Estructura del sistema de archivos ha sido cargada correctamente!", "Filemanager", JOptionPane.INFORMATION_MESSAGE);
+
+    }//GEN-LAST:event_loadOptionMenuItemActionPerformed
 
     /**
      * @param args the command line arguments

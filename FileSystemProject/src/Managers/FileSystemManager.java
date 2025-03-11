@@ -462,4 +462,11 @@ public class FileSystemManager {
     public Storage getStorage() {
         return storage;
     }
+
+    /**
+     * @param rootDirectory the rootDirectory to set
+     */
+    public void setRootDirectory(Directory rootDirectory) {
+        this.rootDirectory = rootDirectory;
+    }
 }
