@@ -11,16 +11,19 @@ import FileSystem.Directory;
 import FileSystem.OurFile;
 import Managers.FileManager;
 import Managers.FileSystemManager;
+import Managers.Logger;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Font;
+import java.awt.Frame;
 import java.awt.GridLayout;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
+import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JList;
@@ -64,10 +67,14 @@ public class FileSystemUI extends javax.swing.JFrame {
     // table file model
     private final DefaultTableModel tableFilesModel;
 
+    // Instancia del Logger
+    private final Logger logger;
+
     public FileSystemUI() {
         initComponents();
         // gui properties
         this.setTitle("Simulador Sistema de Archivos - Usuario Regular");
+
         this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         this.setSize(1070, 647);
         this.setLocationRelativeTo(null);
@@ -78,6 +85,7 @@ public class FileSystemUI extends javax.swing.JFrame {
         this.fsManager = new FileSystemManager(fileSystemTree);
         this.fileManager = new FileManager();
         this.fsManager.updateTree();
+        this.logger = fileManager.getLogger();
 
         // Iniciar tabla de archivos
         this.tableFilesModel = new DefaultTableModel(new String[]{"Nombre de Archivo", "Bloques Asignados", "Primer Espacio de Bloque"}, 0);
@@ -89,6 +97,8 @@ public class FileSystemUI extends javax.swing.JFrame {
         this.setupListeners();
         this.updateMoreInfoPanel();
 
+        // Registrar la accion en el log
+        this.logger.log("==========> INICIALIZANDO SISTEMA DE ARCHIVOS... <==========");
     }
 
     public static synchronized FileSystemUI getInstance() {
@@ -96,6 +106,17 @@ public class FileSystemUI extends javax.swing.JFrame {
             setFileSystemUiInstance(new FileSystemUI());
         }
         return fileSystemUiInstance;
+    }
+
+    private void showLogRegisterView(Frame parent) {
+        this.logRegisterView.setTitle("Registro de Operaciones");
+        this.logRegisterView.setSize(650, 350);
+        this.logRegisterView.setLocationRelativeTo(parent);
+        this.logRegisterView.setResizable(false);
+        this.logTextArea.setEditable(false); // Hacer el texto no editable
+        String logContent = this.fileManager.loadLogsInGUI(this.logger.getLogFile());
+        this.logTextArea.setText(logContent);
+        this.logRegisterView.setVisible(true);
     }
 
     private void updateFilesTable() {
@@ -276,6 +297,10 @@ public class FileSystemUI extends javax.swing.JFrame {
 
                 // Expandir el nodo padre en el JTree
                 this.fileSystemTree.expandPath(new TreePath(selectedParentNode.getPath()));
+
+                // Registrar la acción en el log
+                this.logger.log("Directorio creado: " + directoryName + " en " + this.currentPath);
+
                 // Actualizar estado panel de info
                 this.updateMoreInfoPanel();
 
@@ -327,6 +352,9 @@ public class FileSystemUI extends javax.swing.JFrame {
                         DefaultMutableTreeNode newNode = new DefaultMutableTreeNode(newFile);
                         treeModel.insertNodeInto(newNode, selectedParentNode, selectedParentNode.getChildCount());
                         this.fileSystemTree.expandPath(new TreePath(selectedParentNode.getPath()));
+
+                        // Registrar la accion en el log
+                        this.logger.log("Nuevo archivo creado: " + newFile.getName() + " Tamaño: " + newFile.getSize() + " Direccion Primer Bloque" + newFile.getFirstBlockAddress() + " en " + this.currentPath);
 
                         // Actualizar componentes de UI
                         this.updateFilesTable();
@@ -382,6 +410,10 @@ public class FileSystemUI extends javax.swing.JFrame {
             if (!success) {
                 JOptionPane.showMessageDialog(this, "No se pudo renombrar el directorio. Verifique que el nombre no esté duplicado.", "Error al Renombrar", JOptionPane.ERROR_MESSAGE);
             }
+
+            // Registrar la accion en el log
+            this.logger.log("El directorio '" + ((Directory) nodeParentObject).getName() + "' ha sido renombrado a: " + newName);
+
             // Actualizar componentes de UI
             this.updateFilesTable();
             this.updateBlockStoragePanel();
@@ -393,6 +425,10 @@ public class FileSystemUI extends javax.swing.JFrame {
                 JOptionPane.showMessageDialog(this, "No se pudo renombrar el archivo. Verifique que el nombre no esté duplicado.", "Error al Renombrar", JOptionPane.ERROR_MESSAGE);
 
             }
+
+            // Registrar la accion en el log
+            this.logger.log("El archivo '" + ((OurFile) nodeParentObject).getName() + "' ha sido renombrado a: " + newName);
+
             // Actualizar componentes de UI
             this.updateFilesTable();
             this.updateBlockStoragePanel();
@@ -424,6 +460,10 @@ public class FileSystemUI extends javax.swing.JFrame {
                 if (!supressionSuccess) {
                     JOptionPane.showMessageDialog(this, "No se pudo eliminar el directorio. Verifique la operacion.", "Error al Renombrar", JOptionPane.ERROR_MESSAGE);
                 }
+
+                // Registrar la accion en el log
+                this.logger.log("El documento '" + ((Directory) nodeParentObject).getName() + "' ha sido eliminado de la ruta: " + this.currentPath);
+
                 // Actualizar componentes de UI
                 this.updateFilesTable();
                 this.updateBlockStoragePanel();
@@ -435,6 +475,10 @@ public class FileSystemUI extends javax.swing.JFrame {
                 if (!supressionSuccess) {
                     JOptionPane.showMessageDialog(this, "No se pudo eliminar el archivo. Verifique la operacion.", "Error al Renombrar", JOptionPane.ERROR_MESSAGE);
                 }
+
+                // Registrar la accion en el log
+                this.logger.log("El archivo '" + ((OurFile) nodeParentObject).getName() + "' ha sido eliminado de la ruta: " + this.currentPath);
+
                 // Actualizar componentes de UI
                 this.updateFilesTable();
                 this.updateBlockStoragePanel();
@@ -486,9 +530,15 @@ public class FileSystemUI extends javax.swing.JFrame {
         if (nodeObject instanceof OurFile) {
             // Ya se actualiza el arbol
             success = fsManager.moveFile(sourcePath, destPath);
+            // Registrar la accion en el log
+            this.logger.log("El archivo '" + ((OurFile) nodeObject).getName() + "' se ha movido. Origen: " + sourcePath + ", Destino: " + destPath);
+
         } else {
             // Ya se actualiza el arbol
             success = fsManager.moveDirectory(sourcePath, destPath);
+            // Registrar la accion en el log
+            this.logger.log("El directorio '" + ((Directory) nodeObject).getName() + "' se ha movido. Origen: " + sourcePath + ", Destino: " + destPath);
+
         }
 
         if (!success) {
@@ -707,6 +757,9 @@ public class FileSystemUI extends javax.swing.JFrame {
         this.disableContextMenuEditOptions();
         JOptionPane.showMessageDialog(this, "Ha cambiado a Usuario Regular", "Cambio de Usuario", JOptionPane.INFORMATION_MESSAGE);
 
+        // Registrar la acción en el log
+        this.logger.log("Modo de usuario cambiado exitosamente! - Tipo: Regular");
+
         this.setTitle("Simulador Sistema de Archivos - Modo Usuario Regular");
     }
 
@@ -718,6 +771,9 @@ public class FileSystemUI extends javax.swing.JFrame {
         // activar opciones de edicion
         this.enableContextMenuEditOptions();
         JOptionPane.showMessageDialog(this, "Has accedido al Modo Administrador", "Cambio de Usuario", JOptionPane.INFORMATION_MESSAGE);
+
+        // Registrar la acción en el log
+        this.logger.log("Modo de usuario cambiado exitosamente! - Tipo: ADMIN");
 
         this.setTitle("Simulador Sistema de Archivos - Modo Administrador");
     }
@@ -776,6 +832,12 @@ public class FileSystemUI extends javax.swing.JFrame {
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
 
+        logRegisterView = new javax.swing.JDialog();
+        jPanel1 = new javax.swing.JPanel();
+        jLabel1 = new javax.swing.JLabel();
+        logCloseButton = new javax.swing.JButton();
+        jScrollPane4 = new javax.swing.JScrollPane();
+        logTextArea = new javax.swing.JTextArea();
         mainPanel = new javax.swing.JPanel();
         viewTreePanel = new javax.swing.JPanel();
         jScrollPane2 = new javax.swing.JScrollPane();
@@ -787,6 +849,7 @@ public class FileSystemUI extends javax.swing.JFrame {
         filesPanel = new javax.swing.JPanel();
         jScrollPane1 = new javax.swing.JScrollPane();
         filesJTable = new javax.swing.JTable();
+        jButton1 = new javax.swing.JButton();
         mainMenuBar = new javax.swing.JMenuBar();
         fileMenuItem = new javax.swing.JMenu();
         saveOptionMenuItem = new javax.swing.JMenuItem();
@@ -794,7 +857,67 @@ public class FileSystemUI extends javax.swing.JFrame {
         userModeMenuItem = new javax.swing.JMenu();
         regularUserItem = new javax.swing.JMenuItem();
         adminUserItem = new javax.swing.JMenuItem();
-        generateLogOptionMenu = new javax.swing.JMenu();
+
+        logRegisterView.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
+
+        jPanel1.setBackground(new java.awt.Color(204, 102, 255));
+
+        jLabel1.setFont(new java.awt.Font("Yu Gothic UI Semibold", 1, 14)); // NOI18N
+        jLabel1.setText("REGISTRO DE OPERACIONES");
+
+        logCloseButton.setText("Cerrar");
+        logCloseButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                logCloseButtonActionPerformed(evt);
+            }
+        });
+
+        logTextArea.setColumns(20);
+        logTextArea.setFont(new java.awt.Font("Yu Gothic UI Semibold", 0, 12)); // NOI18N
+        logTextArea.setRows(5);
+        jScrollPane4.setViewportView(logTextArea);
+
+        javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
+        jPanel1.setLayout(jPanel1Layout);
+        jPanel1Layout.setHorizontalGroup(
+            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel1Layout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(jPanel1Layout.createSequentialGroup()
+                        .addComponent(jScrollPane4)
+                        .addContainerGap())
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
+                        .addGap(0, 213, Short.MAX_VALUE)
+                        .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 250, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(181, 181, 181))))
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addComponent(logCloseButton)
+                .addContainerGap())
+        );
+        jPanel1Layout.setVerticalGroup(
+            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel1Layout.createSequentialGroup()
+                .addGap(14, 14, 14)
+                .addComponent(jLabel1)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(jScrollPane4, javax.swing.GroupLayout.DEFAULT_SIZE, 244, Short.MAX_VALUE)
+                .addGap(18, 18, 18)
+                .addComponent(logCloseButton)
+                .addGap(19, 19, 19))
+        );
+
+        javax.swing.GroupLayout logRegisterViewLayout = new javax.swing.GroupLayout(logRegisterView.getContentPane());
+        logRegisterView.getContentPane().setLayout(logRegisterViewLayout);
+        logRegisterViewLayout.setHorizontalGroup(
+            logRegisterViewLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+        );
+        logRegisterViewLayout.setVerticalGroup(
+            logRegisterViewLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+        );
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
@@ -916,13 +1039,24 @@ public class FileSystemUI extends javax.swing.JFrame {
         filesJTable.setEnabled(false);
         jScrollPane1.setViewportView(filesJTable);
 
+        jButton1.setText("Ver Registro");
+        jButton1.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jButton1ActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout filesPanelLayout = new javax.swing.GroupLayout(filesPanel);
         filesPanel.setLayout(filesPanelLayout);
         filesPanelLayout.setHorizontalGroup(
             filesPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(filesPanelLayout.createSequentialGroup()
                 .addContainerGap()
-                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 388, Short.MAX_VALUE)
+                .addGroup(filesPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 388, Short.MAX_VALUE)
+                    .addGroup(filesPanelLayout.createSequentialGroup()
+                        .addComponent(jButton1)
+                        .addGap(0, 0, Short.MAX_VALUE)))
                 .addContainerGap())
         );
         filesPanelLayout.setVerticalGroup(
@@ -930,6 +1064,8 @@ public class FileSystemUI extends javax.swing.JFrame {
             .addGroup(filesPanelLayout.createSequentialGroup()
                 .addContainerGap()
                 .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 333, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(18, 18, 18)
+                .addComponent(jButton1)
                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
 
@@ -1001,9 +1137,6 @@ public class FileSystemUI extends javax.swing.JFrame {
 
         mainMenuBar.add(userModeMenuItem);
 
-        generateLogOptionMenu.setText("Generar registro");
-        mainMenuBar.add(generateLogOptionMenu);
-
         setJMenuBar(mainMenuBar);
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
@@ -1029,6 +1162,9 @@ public class FileSystemUI extends javax.swing.JFrame {
 
     private void adminUserItemActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_adminUserItemActionPerformed
         // TODO add your handling code here:
+        // Registrar la accion en el log
+        this.logger.log("Se ha solicitado acceso de administrador... Estado de usuario actual: " + this.isAdminMode);
+
         if (!isAdminMode) {
             this.requestAdminPassword();
         }
@@ -1054,6 +1190,16 @@ public class FileSystemUI extends javax.swing.JFrame {
         JOptionPane.showMessageDialog(this, "Estructura del sistema de archivos ha sido cargada correctamente!", "Filemanager", JOptionPane.INFORMATION_MESSAGE);
 
     }//GEN-LAST:event_loadOptionMenuItemActionPerformed
+
+    private void logCloseButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_logCloseButtonActionPerformed
+        // TODO add your handling code here:
+        this.logRegisterView.dispose();
+    }//GEN-LAST:event_logCloseButtonActionPerformed
+
+    private void jButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton1ActionPerformed
+        // TODO add your handling code here:
+        this.showLogRegisterView(this);
+    }//GEN-LAST:event_jButton1ActionPerformed
 
     /**
      * @param args the command line arguments
@@ -1099,10 +1245,17 @@ public class FileSystemUI extends javax.swing.JFrame {
     private javax.swing.JPanel fileViewInfoPanel;
     private javax.swing.JTable filesJTable;
     private javax.swing.JPanel filesPanel;
-    private javax.swing.JMenu generateLogOptionMenu;
+    private javax.swing.JButton jButton1;
+    private javax.swing.JLabel jLabel1;
+    private javax.swing.JPanel jPanel1;
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JScrollPane jScrollPane2;
+    private javax.swing.JScrollPane jScrollPane3;
+    private javax.swing.JScrollPane jScrollPane4;
     private javax.swing.JMenuItem loadOptionMenuItem;
+    private javax.swing.JButton logCloseButton;
+    private javax.swing.JDialog logRegisterView;
+    private javax.swing.JTextArea logTextArea;
     private javax.swing.JMenuBar mainMenuBar;
     private javax.swing.JPanel mainPanel;
     private javax.swing.JPanel moreInfoPanel;

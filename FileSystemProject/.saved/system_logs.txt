@@ -1,0 +1,26 @@
+[2025-03-13 14:09:01] ==========> INICIALIZANDO SISTEMA DE ARCHIVOS... <==========
+[2025-03-13 14:09:03] Se ha solicitado acceso de administrador... Estado de usuario actual: false
+[2025-03-13 14:09:07] Modo de usuario cambiado exitosamente! - Tipo: ADMIN
+[2025-03-13 14:09:12] Directorio creado: gimme some sugar en /root
+[2025-03-13 14:09:17] Nuevo archivo creado: new file dude Tamaño: 9 Direccion Primer Bloquerow, col: [0, 0] en /root
+[2025-03-13 14:09:25] Directorio creado: another dir en /root
+[2025-03-13 14:09:34] Nuevo archivo creado: new sub file now Tamaño: 14 Direccion Primer Bloquerow, col: [1, 3] en /root/another dir
+[2025-03-13 14:09:45] Nuevo archivo creado: Lets get that straight Tamaño: 5 Direccion Primer Bloquerow, col: [3, 5] en /root/gimme some sugar
+[2025-03-13 14:09:51] Directorio creado: Dir for dir en /root/gimme some sugar
+[2025-03-13 14:09:59] Nuevo archivo creado: little mac Tamaño: 5 Direccion Primer Bloquerow, col: [4, 4] en /root/gimme some sugar/Dir for dir
+[2025-03-13 14:10:10] Nuevo archivo creado: eroski Tamaño: 3 Direccion Primer Bloquerow, col: [5, 3] en /root/another dir
+[2025-03-13 14:16:34] Estructura del sistema de archivos guardada en .saved\filesystem_data.json
+[2025-03-13 14:58:10] ==========> INICIALIZANDO SISTEMA DE ARCHIVOS... <==========
+[2025-03-13 15:06:11] ==========> INICIALIZANDO SISTEMA DE ARCHIVOS... <==========
+[2025-03-13 15:06:22] ==========> INICIALIZANDO SISTEMA DE ARCHIVOS... <==========
+[2025-03-13 15:07:38] ==========> INICIALIZANDO SISTEMA DE ARCHIVOS... <==========
+[2025-03-13 15:12:49] ==========> INICIALIZANDO SISTEMA DE ARCHIVOS... <==========
+[2025-03-13 15:14:53] ==========> INICIALIZANDO SISTEMA DE ARCHIVOS... <==========
+[2025-03-13 15:19:07] ==========> INICIALIZANDO SISTEMA DE ARCHIVOS... <==========
+[2025-03-13 15:21:24] ==========> INICIALIZANDO SISTEMA DE ARCHIVOS... <==========
+[2025-03-13 15:21:51] Estructura del sistema de archivos leida desde: .saved\system_logs.txt
+[2025-03-13 15:23:25] ==========> INICIALIZANDO SISTEMA DE ARCHIVOS... <==========
+[2025-03-13 15:23:28] Estructura del sistema de archivos leida desde: .saved\system_logs.txt
+[2025-03-13 15:24:56] ==========> INICIALIZANDO SISTEMA DE ARCHIVOS... <==========
+[2025-03-13 15:28:26] ==========> INICIALIZANDO SISTEMA DE ARCHIVOS... <==========
+[2025-03-13 15:29:03] ==========> INICIALIZANDO SISTEMA DE ARCHIVOS... <==========

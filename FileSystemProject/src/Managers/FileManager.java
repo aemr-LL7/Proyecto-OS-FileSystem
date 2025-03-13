@@ -38,12 +38,14 @@ public class FileManager {
     private File logFile;
     private File fileSystemDataFile;
     private final Gson gson;
+    private Logger logger;
 
     public FileManager() {
         this.gson = new GsonBuilder()
                 .setPrettyPrinting()
                 .create();
         this.initializeDirectory();
+        this.logger = new Logger(this.logFile);
     }
 
     private void initializeDirectory() {
@@ -111,6 +113,9 @@ public class FileManager {
             // Deserializar la estructura jerarquica
             this.deserializeDirectory(rootJson.get("/root").getAsJsonObject(), rootDirectory, actualStorage, fileTable);
 
+            // Registrar la accion en el log
+            this.logger.log("Estructura del sistema de archivos leida desde: " + this.logFile.getPath());
+
             return rootDirectory;
 
         } catch (Exception e) {
@@ -139,6 +144,9 @@ public class FileManager {
             // Escribir el JSON en el archivo
             gson.toJson(rootJson, writer);
             System.out.println("Estructura del sistema de archivos guardada en " + this.fileSystemDataFile.getPath());
+            // Registrar la accion en el log
+            this.logger.log("Estructura del sistema de archivos guardada en " + this.fileSystemDataFile.getPath());
+
             JOptionPane.showMessageDialog(null, "Estructura del sistema de archivos guardada en " + this.fileSystemDataFile.getPath(), "Filemanager", JOptionPane.INFORMATION_MESSAGE);
 
         } catch (IOException e) {
@@ -203,7 +211,7 @@ public class FileManager {
             parentDirectory.addFile(file);
             storage.allocateBlocks(file);
             fileTable.put(file.getName(), file);
-            
+
         }
     }
 
@@ -222,6 +230,25 @@ public class FileManager {
             JOptionPane.showMessageDialog(null, "Error al leer el archivo.", "Error", JOptionPane.ERROR_MESSAGE);
         }
         return data.toString();
+    }
+
+    public String loadLogsInGUI(File logFile) {
+        try {
+            // Leer el contenido del archivo de log
+            String logContent = new String(Files.readAllBytes(Paths.get(logFile.getAbsolutePath())));
+            
+            return logContent;
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(null, "Error al leer el archivo de log: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+        return "";
+    }
+
+    /**
+     * @return the logger
+     */
+    public Logger getLogger() {
+        return logger;
     }
 
 }

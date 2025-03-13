@@ -1,14 +1,49 @@
 {
   "/root": {
-    "subdirectories": [],
-    "files": [
+    "subdirectories": [
       {
-        "name": "my new file",
-        "size": 12
+        "gimme some sugar": {
+          "subdirectories": [
+            {
+              "Dir for dir": {
+                "subdirectories": [],
+                "files": [
+                  {
+                    "name": "little mac",
+                    "size": 5
+                  }
+                ]
+              }
+            }
+          ],
+          "files": [
+            {
+              "name": "Lets get that straight",
+              "size": 5
+            }
+          ]
+        }
       },
       {
-        "name": "mi nombre",
-        "size": 8
+        "another dir": {
+          "subdirectories": [],
+          "files": [
+            {
+              "name": "new sub file now",
+              "size": 14
+            },
+            {
+              "name": "eroski",
+              "size": 3
+            }
+          ]
+        }
+      }
+    ],
+    "files": [
+      {
+        "name": "new file dude",
+        "size": 9
       }
     ]
   }
