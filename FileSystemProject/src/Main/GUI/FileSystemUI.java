@@ -9,6 +9,7 @@ import EDD.SimpleList;
 import EDD.SimpleNode;
 import FileSystem.Directory;
 import FileSystem.OurFile;
+import FileSystem.Storage;
 import Managers.FileManager;
 import Managers.FileSystemManager;
 import Managers.Logger;
@@ -23,7 +24,6 @@ import java.awt.event.MouseEvent;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
-import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JList;
@@ -33,6 +33,7 @@ import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JProgressBar;
 import javax.swing.JScrollPane;
+import javax.swing.JSplitPane;
 import javax.swing.JTable;
 import javax.swing.JTextArea;
 import javax.swing.SwingConstants;
@@ -76,11 +77,13 @@ public class FileSystemUI extends javax.swing.JFrame {
         this.setTitle("Simulador Sistema de Archivos - Usuario Regular");
 
         this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        this.setSize(1070, 647);
+        this.setSize(1075, 650);
         this.setLocationRelativeTo(null);
         //this.setResizable(false);
 
         // configuraciones
+        // Añadir separadores en la tabla y sd
+        this.setupSplitPane();
         // Iniciar el filesystem manager
         this.fsManager = new FileSystemManager(fileSystemTree);
         this.fileManager = new FileManager();
@@ -108,12 +111,26 @@ public class FileSystemUI extends javax.swing.JFrame {
         return fileSystemUiInstance;
     }
 
+    private void setupSplitPane() {
+        JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, this.filesPanel, this.storageViewPanel);
+
+        // Configurar el JSplitPane
+        splitPane.setDividerLocation(0.5); // Divisor en el centro
+        splitPane.setResizeWeight(0.5); // Redimensionar proporcionalmente
+        splitPane.setOneTouchExpandable(true); // Botones para expandir/colapsar
+        splitPane.setContinuousLayout(true); // Actualizar en tiempo real
+
+        // Añadir el JSplitPane al contenedor principal
+        auxMainPanel.add(splitPane, BorderLayout.CENTER);
+    }
+
     private void showLogRegisterView(Frame parent) {
         this.logRegisterView.setTitle("Registro de Operaciones");
         this.logRegisterView.setSize(650, 350);
         this.logRegisterView.setLocationRelativeTo(parent);
         this.logRegisterView.setResizable(false);
         this.logTextArea.setEditable(false); // Hacer el texto no editable
+        // Mostrar el registro en el jtextarea
         String logContent = this.fileManager.loadLogsInGUI(this.logger.getLogFile());
         this.logTextArea.setText(logContent);
         this.logRegisterView.setVisible(true);
@@ -215,11 +232,14 @@ public class FileSystemUI extends javax.swing.JFrame {
         fileSystemTree.addTreeSelectionListener(e -> {
             TreePath selectionPath = fileSystemTree.getSelectionPath();
             if (selectionPath != null) {
+
                 StringBuilder pathBuilder = new StringBuilder("/root");
+
                 // Para evitar tocar la raíz, se inicia desde 1
                 for (int i = 1; i < selectionPath.getPathCount(); i++) {
                     DefaultMutableTreeNode node = (DefaultMutableTreeNode) selectionPath.getPathComponent(i);
                     Object userObject = node.getUserObject();
+
                     if (userObject instanceof Directory) {
                         Directory dir = (Directory) userObject;
                         pathBuilder.append("/").append(dir.getName());
@@ -270,10 +290,7 @@ public class FileSystemUI extends javax.swing.JFrame {
         DefaultMutableTreeNode selectedParentNode = (DefaultMutableTreeNode) this.fileSystemTree.getLastSelectedPathComponent();
 
         if (selectedParentNode == null) {
-            JOptionPane.showMessageDialog(this,
-                    "Por favor seleccione un directorio donde quiere crear una carpeta.",
-                    "Sin Selección",
-                    JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Por favor seleccione un directorio donde quiere crear una carpeta.", "Sin Selección", JOptionPane.WARNING_MESSAGE);
             return;
         }
 
@@ -299,7 +316,7 @@ public class FileSystemUI extends javax.swing.JFrame {
                 this.fileSystemTree.expandPath(new TreePath(selectedParentNode.getPath()));
 
                 // Registrar la acción en el log
-                this.logger.log("Directorio creado: " + directoryName + " en " + this.currentPath);
+                this.logger.log("Directorio creado '" + directoryName + "' en: " + this.currentPath);
 
                 // Actualizar estado panel de info
                 this.updateMoreInfoPanel();
@@ -354,7 +371,7 @@ public class FileSystemUI extends javax.swing.JFrame {
                         this.fileSystemTree.expandPath(new TreePath(selectedParentNode.getPath()));
 
                         // Registrar la accion en el log
-                        this.logger.log("Nuevo archivo creado: " + newFile.getName() + " Tamaño: " + newFile.getSize() + " Direccion Primer Bloque" + newFile.getFirstBlockAddress() + " en " + this.currentPath);
+                        this.logger.log("Nuevo archivo creado '" + newFile.getName() + "', Tamaño: " + newFile.getSize() + ", Direccion Primer Bloque: " + newFile.getFirstBlockAddress() + ", en " + this.currentPath);
 
                         // Actualizar componentes de UI
                         this.updateFilesTable();
@@ -412,7 +429,7 @@ public class FileSystemUI extends javax.swing.JFrame {
             }
 
             // Registrar la accion en el log
-            this.logger.log("El directorio '" + ((Directory) nodeParentObject).getName() + "' ha sido renombrado a: " + newName);
+            this.logger.log("El directorio '" + ((Directory) nodeParentObject).getName() + "' ha sido renombrado como: '" + newName + "'");
 
             // Actualizar componentes de UI
             this.updateFilesTable();
@@ -427,7 +444,7 @@ public class FileSystemUI extends javax.swing.JFrame {
             }
 
             // Registrar la accion en el log
-            this.logger.log("El archivo '" + ((OurFile) nodeParentObject).getName() + "' ha sido renombrado a: " + newName);
+            this.logger.log("El archivo '" + ((OurFile) nodeParentObject).getName() + "' ha sido renombrado como: '" + newName + "'");
 
             // Actualizar componentes de UI
             this.updateFilesTable();
@@ -634,44 +651,23 @@ public class FileSystemUI extends javax.swing.JFrame {
     }
 
     private void updateBlockStoragePanel() {
-        // Limpiar el panel
-        blockStoragePanel.removeAll();
+        blockStoragePanel.removeAll(); // Limpiar el panel
         blockStoragePanel.revalidate();
         blockStoragePanel.repaint();
 
         // Obtener la matriz de almacenamiento
-        int storageSize = this.fsManager.getStorage().getStorageSize();
-        OurFile[][] fileMatrix = new OurFile[storageSize][storageSize];
+        String[][] guiMatrix = fsManager.getStorage().getStorageMatrixForGUI();
+        int storageSize = fsManager.getStorage().getStorageSize();
 
-        // Obtener archivos y sus posiciones en la matriz
-        SimpleNode<OurFile> fileNode = this.fsManager.getStorage().getFileTable().getEntriesList().getpFirst();
-        while (fileNode != null) {
-            OurFile file = fileNode.getData();
-            int[][] positions = this.fsManager.getStorage().getFileBlockPositions(file);    // METODO DE STORAGE PARA DEVOLVER LA MATRIZ DE POSICIONES
-
-            for (int i = 0; i < positions.length; i++) {
-                int row = positions[i][0];
-                int col = positions[i][1];
-                fileMatrix[row][col] = file;
-            }
-
-            fileNode = fileNode.getpNext();
-        }
-
-        // Configurar el layout del panel
-        blockStoragePanel.setLayout(new GridLayout(storageSize, storageSize, 2, 2));
-
-        // Recorrer la matriz de almacenamiento
         for (int row = 0; row < storageSize; row++) {
             for (int col = 0; col < storageSize; col++) {
                 JLabel blockLabel = new JLabel();
 
-                if (fileMatrix[row][col] != null) {
+                if (!guiMatrix[row][col].isEmpty()) {
                     // Bloque ocupado
-                    OurFile file = fileMatrix[row][col];
-                    blockLabel.setText(file.getName());  // Mostrar el nombre del archivo
+                    blockLabel.setText(guiMatrix[row][col]);  // Mostrar el nombre del archivo
                     blockLabel.setOpaque(true);
-                    blockLabel.setBackground(this.generateFileColor(file.getName()));  // Color unico basado en el nombre
+                    blockLabel.setBackground(this.generateFileColor(guiMatrix[row][col]));  // Color basado en el nombre
                     blockLabel.setHorizontalAlignment(SwingConstants.CENTER);
                     blockLabel.setBorder(BorderFactory.createLineBorder(Color.BLACK));
                 } else {
@@ -681,10 +677,12 @@ public class FileSystemUI extends javax.swing.JFrame {
                     blockLabel.setBorder(BorderFactory.createLineBorder(Color.BLACK));
                 }
 
-                // Añadir el bloque al panel
                 blockStoragePanel.add(blockLabel);
             }
         }
+
+        // Configurar el layout del panel
+        blockStoragePanel.setLayout(new GridLayout(storageSize, storageSize, 2, 2));
 
         // Actualizar el panel
         blockStoragePanel.revalidate();
@@ -698,36 +696,40 @@ public class FileSystemUI extends javax.swing.JFrame {
         moreInfoPanel.revalidate();
         moreInfoPanel.repaint();
 
-        String stats = this.fsManager.printStorageStats();
+        // Obtener el almacenamiento
+        Storage storage = fsManager.getStorage();
 
+        // Calcular los bloques totales, usados y disponibles
+        int totalBlocks = storage.getStorageSize() * storage.getStorageSize();
+        int usedBlocks = totalBlocks - storage.getAvailableStorage();
+        double usedPercentage = (double) usedBlocks / totalBlocks * 100;
+
+        // Crear el texto con las estadísticas
+        StringBuilder stats = new StringBuilder();
+        stats.append("Bloques TOTALES: ").append(totalBlocks).append("\n");
+        stats.append("Bloques usados: ").append(usedBlocks).append(" (").append(String.format("%.2f", usedPercentage)).append("%)\n");
+        stats.append("Bloques disponibles: ").append(storage.getAvailableStorage()).append(" (").append(String.format("%.2f", 100 - usedPercentage)).append("%)\n");
+
+        // Añadir el título
         JLabel titleLabel = new JLabel("Estado del Almacenamiento");
         titleLabel.setFont(new Font("Yu Gothic UI Semibold", Font.BOLD, 16));
         titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         moreInfoPanel.add(titleLabel);
 
-        JTextArea statsTextArea = new JTextArea(stats);
+        // Añadir el texto de estadísticas
+        JTextArea statsTextArea = new JTextArea(stats.toString());
         statsTextArea.setFont(new Font("Arial", Font.PLAIN, 14));
         statsTextArea.setEditable(false);
-        statsTextArea.setBackground(moreInfoPanel.getBackground()); // Transparente
+        statsTextArea.setBackground(moreInfoPanel.getBackground());
         statsTextArea.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        // Añadir el JTextArea al panel
-        moreInfoPanel.add(Box.createVerticalStrut(7));  // Espacio entre componentes
+        moreInfoPanel.add(Box.createVerticalStrut(7));
         moreInfoPanel.add(statsTextArea);
 
-        // Obtener el porcentaje de uso del almacenamiento
-        int totalBlocks = fsManager.getStorage().getStorageSize() * fsManager.getStorage().getStorageSize();
-        int usedBlocks = totalBlocks - fsManager.getStorage().getAvailableStorage();
-        double usedPercentage = (double) usedBlocks / totalBlocks * 100;
-
-        // Crear una JProgressBar para mostrar el porcentaje de uso
         JProgressBar progressBar = new JProgressBar(0, 100);
         progressBar.setValue((int) usedPercentage);
-        progressBar.setStringPainted(true);  // Mostrar el porcentaje como texto
+        progressBar.setStringPainted(true);
         progressBar.setString("Uso del Almacenamiento: " + String.format("%.2f", usedPercentage) + "%");
         progressBar.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        // Añadir la JProgressBar al panel
         moreInfoPanel.add(Box.createVerticalStrut(7));
         moreInfoPanel.add(progressBar);
 
@@ -755,10 +757,11 @@ public class FileSystemUI extends javax.swing.JFrame {
 
         // desactivar las opciones de edicion en el menu contextual
         this.disableContextMenuEditOptions();
+        this.viewLogButton.setEnabled(false);
         JOptionPane.showMessageDialog(this, "Ha cambiado a Usuario Regular", "Cambio de Usuario", JOptionPane.INFORMATION_MESSAGE);
 
         // Registrar la acción en el log
-        this.logger.log("Modo de usuario cambiado exitosamente! - Tipo: Regular");
+        this.logger.log("* Modo de usuario cambiado exitosamente! - Tipo: Regular");
 
         this.setTitle("Simulador Sistema de Archivos - Modo Usuario Regular");
     }
@@ -770,10 +773,11 @@ public class FileSystemUI extends javax.swing.JFrame {
 
         // activar opciones de edicion
         this.enableContextMenuEditOptions();
+        this.viewLogButton.setEnabled(true);
         JOptionPane.showMessageDialog(this, "Has accedido al Modo Administrador", "Cambio de Usuario", JOptionPane.INFORMATION_MESSAGE);
 
         // Registrar la acción en el log
-        this.logger.log("Modo de usuario cambiado exitosamente! - Tipo: ADMIN");
+        this.logger.log("* Modo de usuario cambiado exitosamente! - Tipo: ADMIN");
 
         this.setTitle("Simulador Sistema de Archivos - Modo Administrador");
     }
@@ -844,12 +848,13 @@ public class FileSystemUI extends javax.swing.JFrame {
         fileSystemTree = new javax.swing.JTree();
         fileViewInfoPanel = new javax.swing.JPanel();
         moreInfoPanel = new javax.swing.JPanel();
-        storageViewPanel = new javax.swing.JPanel();
-        blockStoragePanel = new javax.swing.JPanel();
+        auxMainPanel = new javax.swing.JPanel();
         filesPanel = new javax.swing.JPanel();
         jScrollPane1 = new javax.swing.JScrollPane();
         filesJTable = new javax.swing.JTable();
-        jButton1 = new javax.swing.JButton();
+        viewLogButton = new javax.swing.JButton();
+        storageViewPanel = new javax.swing.JPanel();
+        blockStoragePanel = new javax.swing.JPanel();
         mainMenuBar = new javax.swing.JMenuBar();
         fileMenuItem = new javax.swing.JMenu();
         saveOptionMenuItem = new javax.swing.JMenuItem();
@@ -860,10 +865,8 @@ public class FileSystemUI extends javax.swing.JFrame {
 
         logRegisterView.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
 
-        jPanel1.setBackground(new java.awt.Color(204, 102, 255));
-
         jLabel1.setFont(new java.awt.Font("Yu Gothic UI Semibold", 1, 14)); // NOI18N
-        jLabel1.setText("REGISTRO DE OPERACIONES");
+        jLabel1.setText("> REGISTRO DE OPERACIONES");
 
         logCloseButton.setText("Cerrar");
         logCloseButton.addActionListener(new java.awt.event.ActionListener() {
@@ -882,18 +885,17 @@ public class FileSystemUI extends javax.swing.JFrame {
         jPanel1Layout.setHorizontalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel1Layout.createSequentialGroup()
-                .addContainerGap()
+                .addGap(198, 198, 198)
+                .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 250, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+            .addGroup(jPanel1Layout.createSequentialGroup()
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addComponent(jScrollPane4)
-                        .addContainerGap())
+                        .addContainerGap()
+                        .addComponent(jScrollPane4, javax.swing.GroupLayout.DEFAULT_SIZE, 638, Short.MAX_VALUE))
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
-                        .addGap(0, 213, Short.MAX_VALUE)
-                        .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 250, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(181, 181, 181))))
-            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addComponent(logCloseButton)
+                        .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(logCloseButton)))
                 .addContainerGap())
         );
         jPanel1Layout.setVerticalGroup(
@@ -921,9 +923,6 @@ public class FileSystemUI extends javax.swing.JFrame {
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
-        mainPanel.setBackground(new java.awt.Color(204, 255, 255));
-
-        viewTreePanel.setBackground(new java.awt.Color(255, 204, 204));
         viewTreePanel.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Explorador de Archivos", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Yu Gothic UI Semibold", 0, 12))); // NOI18N
         viewTreePanel.setFont(new java.awt.Font("Yu Gothic UI Semibold", 0, 12)); // NOI18N
 
@@ -950,9 +949,7 @@ public class FileSystemUI extends javax.swing.JFrame {
             .addGroup(viewTreePanelLayout.createSequentialGroup()
                 .addContainerGap()
                 .addGroup(viewTreePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, viewTreePanelLayout.createSequentialGroup()
-                        .addGap(0, 0, Short.MAX_VALUE)
-                        .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 178, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(jScrollPane2, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, 178, Short.MAX_VALUE)
                     .addComponent(fileViewInfoPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addContainerGap())
         );
@@ -963,10 +960,9 @@ public class FileSystemUI extends javax.swing.JFrame {
                 .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(18, 18, 18)
                 .addComponent(fileViewInfoPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(12, Short.MAX_VALUE))
+                .addContainerGap(15, Short.MAX_VALUE))
         );
 
-        moreInfoPanel.setBackground(new java.awt.Color(204, 153, 255));
         moreInfoPanel.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Información", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Yu Gothic UI Semibold", 0, 12))); // NOI18N
 
         javax.swing.GroupLayout moreInfoPanelLayout = new javax.swing.GroupLayout(moreInfoPanel);
@@ -977,40 +973,11 @@ public class FileSystemUI extends javax.swing.JFrame {
         );
         moreInfoPanelLayout.setVerticalGroup(
             moreInfoPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 153, Short.MAX_VALUE)
-        );
-
-        storageViewPanel.setBackground(new java.awt.Color(204, 204, 255));
-        storageViewPanel.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Almacenamiento", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Yu Gothic UI Semibold", 0, 12))); // NOI18N
-
-        javax.swing.GroupLayout blockStoragePanelLayout = new javax.swing.GroupLayout(blockStoragePanel);
-        blockStoragePanel.setLayout(blockStoragePanelLayout);
-        blockStoragePanelLayout.setHorizontalGroup(
-            blockStoragePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 420, Short.MAX_VALUE)
-        );
-        blockStoragePanelLayout.setVerticalGroup(
-            blockStoragePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGap(0, 0, Short.MAX_VALUE)
         );
 
-        javax.swing.GroupLayout storageViewPanelLayout = new javax.swing.GroupLayout(storageViewPanel);
-        storageViewPanel.setLayout(storageViewPanelLayout);
-        storageViewPanelLayout.setHorizontalGroup(
-            storageViewPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(storageViewPanelLayout.createSequentialGroup()
-                .addContainerGap()
-                .addComponent(blockStoragePanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addContainerGap())
-        );
-        storageViewPanelLayout.setVerticalGroup(
-            storageViewPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(storageViewPanelLayout.createSequentialGroup()
-                .addComponent(blockStoragePanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addContainerGap())
-        );
+        auxMainPanel.setLayout(new java.awt.GridLayout(1, 0));
 
-        filesPanel.setBackground(new java.awt.Color(153, 255, 153));
         filesPanel.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Tabla de Asignación", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Yu Gothic UI Semibold", 0, 12))); // NOI18N
 
         filesJTable.setModel(new javax.swing.table.DefaultTableModel(
@@ -1039,10 +1006,12 @@ public class FileSystemUI extends javax.swing.JFrame {
         filesJTable.setEnabled(false);
         jScrollPane1.setViewportView(filesJTable);
 
-        jButton1.setText("Ver Registro");
-        jButton1.addActionListener(new java.awt.event.ActionListener() {
+        viewLogButton.setFont(new java.awt.Font("Yu Gothic UI Semibold", 0, 12)); // NOI18N
+        viewLogButton.setText("Ver Registro");
+        viewLogButton.setEnabled(false);
+        viewLogButton.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jButton1ActionPerformed(evt);
+                viewLogButtonActionPerformed(evt);
             }
         });
 
@@ -1053,9 +1022,9 @@ public class FileSystemUI extends javax.swing.JFrame {
             .addGroup(filesPanelLayout.createSequentialGroup()
                 .addContainerGap()
                 .addGroup(filesPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 388, Short.MAX_VALUE)
+                    .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
                     .addGroup(filesPanelLayout.createSequentialGroup()
-                        .addComponent(jButton1)
+                        .addComponent(viewLogButton)
                         .addGap(0, 0, Short.MAX_VALUE)))
                 .addContainerGap())
         );
@@ -1065,9 +1034,42 @@ public class FileSystemUI extends javax.swing.JFrame {
                 .addContainerGap()
                 .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 333, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(18, 18, 18)
-                .addComponent(jButton1)
+                .addComponent(viewLogButton)
                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
+
+        auxMainPanel.add(filesPanel);
+
+        storageViewPanel.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Almacenamiento", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Yu Gothic UI Semibold", 0, 12))); // NOI18N
+
+        javax.swing.GroupLayout blockStoragePanelLayout = new javax.swing.GroupLayout(blockStoragePanel);
+        blockStoragePanel.setLayout(blockStoragePanelLayout);
+        blockStoragePanelLayout.setHorizontalGroup(
+            blockStoragePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGap(0, 0, Short.MAX_VALUE)
+        );
+        blockStoragePanelLayout.setVerticalGroup(
+            blockStoragePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGap(0, 0, Short.MAX_VALUE)
+        );
+
+        javax.swing.GroupLayout storageViewPanelLayout = new javax.swing.GroupLayout(storageViewPanel);
+        storageViewPanel.setLayout(storageViewPanelLayout);
+        storageViewPanelLayout.setHorizontalGroup(
+            storageViewPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(storageViewPanelLayout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(blockStoragePanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addContainerGap())
+        );
+        storageViewPanelLayout.setVerticalGroup(
+            storageViewPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(storageViewPanelLayout.createSequentialGroup()
+                .addComponent(blockStoragePanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addContainerGap())
+        );
+
+        auxMainPanel.add(storageViewPanel);
 
         javax.swing.GroupLayout mainPanelLayout = new javax.swing.GroupLayout(mainPanel);
         mainPanel.setLayout(mainPanelLayout);
@@ -1077,23 +1079,19 @@ public class FileSystemUI extends javax.swing.JFrame {
                 .addComponent(viewTreePanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(mainPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(mainPanelLayout.createSequentialGroup()
-                        .addComponent(filesPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(storageViewPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addContainerGap())
-                    .addComponent(moreInfoPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
+                    .addComponent(auxMainPanel, javax.swing.GroupLayout.DEFAULT_SIZE, 863, Short.MAX_VALUE)
+                    .addComponent(moreInfoPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addContainerGap())
         );
         mainPanelLayout.setVerticalGroup(
             mainPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(mainPanelLayout.createSequentialGroup()
                 .addContainerGap()
-                .addGroup(mainPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(storageViewPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(filesPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addComponent(auxMainPanel, javax.swing.GroupLayout.PREFERRED_SIZE, 421, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(moreInfoPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-            .addComponent(viewTreePanel, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addComponent(moreInfoPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addContainerGap())
+            .addComponent(viewTreePanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
         );
 
         fileMenuItem.setText("Archivo");
@@ -1196,10 +1194,10 @@ public class FileSystemUI extends javax.swing.JFrame {
         this.logRegisterView.dispose();
     }//GEN-LAST:event_logCloseButtonActionPerformed
 
-    private void jButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton1ActionPerformed
+    private void viewLogButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_viewLogButtonActionPerformed
         // TODO add your handling code here:
         this.showLogRegisterView(this);
-    }//GEN-LAST:event_jButton1ActionPerformed
+    }//GEN-LAST:event_viewLogButtonActionPerformed
 
     /**
      * @param args the command line arguments
@@ -1239,18 +1237,17 @@ public class FileSystemUI extends javax.swing.JFrame {
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JMenuItem adminUserItem;
+    private javax.swing.JPanel auxMainPanel;
     private javax.swing.JPanel blockStoragePanel;
     private javax.swing.JMenu fileMenuItem;
     private javax.swing.JTree fileSystemTree;
     private javax.swing.JPanel fileViewInfoPanel;
     private javax.swing.JTable filesJTable;
     private javax.swing.JPanel filesPanel;
-    private javax.swing.JButton jButton1;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JScrollPane jScrollPane2;
-    private javax.swing.JScrollPane jScrollPane3;
     private javax.swing.JScrollPane jScrollPane4;
     private javax.swing.JMenuItem loadOptionMenuItem;
     private javax.swing.JButton logCloseButton;
@@ -1263,6 +1260,7 @@ public class FileSystemUI extends javax.swing.JFrame {
     private javax.swing.JMenuItem saveOptionMenuItem;
     private javax.swing.JPanel storageViewPanel;
     private javax.swing.JMenu userModeMenuItem;
+    private javax.swing.JButton viewLogButton;
     private javax.swing.JPanel viewTreePanel;
     // End of variables declaration//GEN-END:variables
 

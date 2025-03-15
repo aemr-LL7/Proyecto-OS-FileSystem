@@ -29,12 +29,13 @@ public class FileSystemManager {
     }
 
     public void updateTree() {
-        DefaultMutableTreeNode rootNode = new DefaultMutableTreeNode(getRootDirectory()); // Usar el objeto Directory
-        this.buildTreeNode(rootNode, getRootDirectory());
+        DefaultMutableTreeNode rootNode = new DefaultMutableTreeNode(rootDirectory);
+        this.buildTreeNode(rootNode, rootDirectory);
 
-        DefaultTreeModel model = (DefaultTreeModel) fileSystemTree.getModel();
-        model.setRoot(rootNode);
-        model.reload();
+        DefaultTreeModel model = new DefaultTreeModel(rootNode);
+        fileSystemTree.setModel(model);
+
+        this.expandAllNodes(fileSystemTree, 0, fileSystemTree.getRowCount());
     }
 
     // Construir recursivamente la estructura del arbol desde los directorios
@@ -53,6 +54,16 @@ public class FileSystemManager {
             DefaultMutableTreeNode subdirNode = new DefaultMutableTreeNode(subdir); // Guardar el objeto Directory
             parentNode.add(subdirNode);
             this.buildTreeNode(subdirNode, subdir);
+        }
+    }
+
+    private void expandAllNodes(JTree tree, int startingIndex, int rowCount) {
+        for (int i = startingIndex; i < rowCount; ++i) {
+            tree.expandRow(i);
+        }
+
+        if (tree.getRowCount() != rowCount) {
+            expandAllNodes(tree, rowCount, tree.getRowCount());
         }
     }
 
@@ -393,7 +404,7 @@ public class FileSystemManager {
      * @return String with storage statistics
      */
     public String printStorageStats() {
-        int totalBlocks = getStorage().getStorageSize() * getStorage().getStorageSize();
+        int totalBlocks = this.getStorage().getAvailableStorage();
         int availableBlocks = getStorage().getAvailableStorage();
         int usedBlocks = totalBlocks - availableBlocks;
 

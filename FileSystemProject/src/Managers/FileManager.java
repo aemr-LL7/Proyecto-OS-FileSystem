@@ -87,19 +87,38 @@ public class FileManager {
         return option == JOptionPane.YES_OPTION;
     }
 
-    public Directory loadFileSystem(Directory rootDirectory, Storage actualStorage, OurHashTable<OurFile> fileTable) {
+    // Limpiar subdirectorios y archivos del directorio raiz
+    private void clearExistingData(Directory rootDirectory, Storage storage) {
 
-        if (this.hasExistingData(rootDirectory)) {
+        rootDirectory.getSubdirectories().wipeList();
+        rootDirectory.getFiles().wipeList();
 
-            if (!confirmLoadOperation()) {
-                return null;
-            }
+        // Limpiar la tabla de archivos y matriz de datos
+        storage.clearStorageMatrix();
+        System.out.println("Datos existentes limpiados correctamente.");
+    }
 
-            // Limpiar los datos existentes
-            this.clearExistingData(rootDirectory, fileTable);
+    private int calculateTotalBlocks(Directory directory) {
+        int totalBlocks = 0;
+
+        // Sumar los bloques de los archivos en este directorio
+        SimpleList<OurFile> files = directory.getFiles();
+        for (int i = 0; i < files.getSize(); i++) {
+            totalBlocks += files.getValueByIndex(i).getSize();
         }
 
+        // Sumar los bloques de los subdirectorios (recursivo)
+        SimpleList<Directory> subdirs = directory.getSubdirectories();
+        for (int i = 0; i < subdirs.getSize(); i++) {
+            totalBlocks += calculateTotalBlocks(subdirs.getValueByIndex(i));
+        }
+
+        return totalBlocks;
+    }
+
+    public Directory loadFileSystem(Directory rootDirectory, Storage actualStorage, OurHashTable<OurFile> fileTable) {
         try {
+            // Leer el contenido del archivo JSON
             String content = this.readFile(this.fileSystemDataFile);
             if (content.isEmpty()) {
                 JOptionPane.showMessageDialog(null, "El archivo de sistema de archivos está vacío.", "Error", JOptionPane.WARNING_MESSAGE);
@@ -110,10 +129,30 @@ public class FileManager {
             JsonParser jsonParser = new JsonParser();
             JsonObject rootJson = jsonParser.parse(content).getAsJsonObject();
 
-            // Deserializar la estructura jerarquica
+            // Obtener el total de bloques ocupados desde el JSON
+            int totalBlocks = rootJson.get("totalBlocks").getAsInt();
+            int storageCapacity = actualStorage.getStorageSize() * actualStorage.getStorageSize();
+
+            // Verificar si los datos caben en la storageMatrix
+            if (totalBlocks > storageCapacity) {
+                JOptionPane.showMessageDialog(null, "El estado no puede cargarse porque los datos exceden el tamaño de la storageMatrix.", "Error", JOptionPane.ERROR_MESSAGE);
+                return null;
+            }
+
+            // Si hay datos existentes, confirmar
+            if (this.hasExistingData(rootDirectory)) {
+                if (!this.confirmLoadOperation()) {
+                    return null; // Se mantiene el estado actual
+                }
+            }
+
+            // solo si la verificacion es exitosa y el usuario confirma
+            this.clearExistingData(rootDirectory, actualStorage);
+
+            // estructura jerarquica
             this.deserializeDirectory(rootJson.get("/root").getAsJsonObject(), rootDirectory, actualStorage, fileTable);
 
-            // Registrar la accion en el log
+            // Registrar en log
             this.logger.log("Estructura del sistema de archivos leida desde: " + this.logFile.getPath());
 
             return rootDirectory;
@@ -125,21 +164,16 @@ public class FileManager {
         }
     }
 
-    // Limpiar subdirectorios y archivos del directorio raiz
-    private void clearExistingData(Directory rootDirectory, OurHashTable<OurFile> fileTable) {
-
-        rootDirectory.getSubdirectories().wipeList();
-        rootDirectory.getFiles().wipeList();
-
-        // Limpiar la tabla de archivos
-        fileTable.clear();
-    }
-
     public void saveFileSystem(Directory rootDirectory) {
         try (Writer writer = new FileWriter(this.fileSystemDataFile)) {
             // Crear un objeto JSON para representar la estructura jerárquica
             JsonObject rootJson = new JsonObject();
-            serializeDirectory(rootDirectory, rootJson);
+
+            // Calcular el total de bloques ocupados
+            int totalBlocks = this.calculateTotalBlocks(rootDirectory);
+            rootJson.addProperty("totalBlocks", totalBlocks); // Añadir el campo totalBlocks
+
+            this.serializeDirectory(rootDirectory, rootJson);
 
             // Escribir el JSON en el archivo
             gson.toJson(rootJson, writer);
@@ -236,7 +270,7 @@ public class FileManager {
         try {
             // Leer el contenido del archivo de log
             String logContent = new String(Files.readAllBytes(Paths.get(logFile.getAbsolutePath())));
-            
+
             return logContent;
         } catch (IOException e) {
             JOptionPane.showMessageDialog(null, "Error al leer el archivo de log: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);

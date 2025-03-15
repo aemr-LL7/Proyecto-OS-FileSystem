@@ -113,5 +113,10 @@ public class Directory {
     public void setFiles(SimpleList<OurFile> files) {
         this.files = files;
     }
-    
+
+    @Override
+    public String toString() {
+        return this.getName();
+    }
+
 }

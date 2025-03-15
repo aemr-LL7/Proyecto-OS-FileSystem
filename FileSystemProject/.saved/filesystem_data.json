@@ -1,15 +1,49 @@
 {
+  "totalBlocks": 36,
   "/root": {
     "subdirectories": [
       {
-        "gimme some sugar": {
+        "Mis Documentos": {
           "subdirectories": [
             {
-              "Dir for dir": {
+              "Clases": {
+                "subdirectories": [
+                  {
+                    "EDD": {
+                      "subdirectories": [],
+                      "files": [
+                        {
+                          "name": "erosito",
+                          "size": 6
+                        },
+                        {
+                          "name": "andresito",
+                          "size": 4
+                        },
+                        {
+                          "name": "mairosito",
+                          "size": 2
+                        }
+                      ]
+                    }
+                  }
+                ],
+                "files": []
+              }
+            }
+          ],
+          "files": []
+        }
+      },
+      {
+        "Fotos": {
+          "subdirectories": [
+            {
+              "Viajes": {
                 "subdirectories": [],
                 "files": [
                   {
-                    "name": "little mac",
+                    "name": "Grecia",
                     "size": 5
                   }
                 ]
@@ -18,33 +52,36 @@
           ],
           "files": [
             {
-              "name": "Lets get that straight",
-              "size": 5
+              "name": "24_12_2023",
+              "size": 2
+            },
+            {
+              "name": "21_01_2024",
+              "size": 3
+            },
+            {
+              "name": "yocuandoyo",
+              "size": 6
             }
           ]
         }
       },
       {
-        "another dir": {
+        "Universidad": {
           "subdirectories": [],
           "files": [
             {
-              "name": "new sub file now",
-              "size": 14
+              "name": "Sistemas Operativos",
+              "size": 4
             },
             {
-              "name": "eroski",
-              "size": 3
+              "name": "Computacion Emergente",
+              "size": 4
             }
           ]
         }
       }
     ],
-    "files": [
-      {
-        "name": "new file dude",
-        "size": 9
-      }
-    ]
+    "files": []
   }
 }

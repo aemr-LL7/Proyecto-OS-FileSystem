@@ -177,6 +177,40 @@ public class Storage {
         return positions;
     }
 
+    public void clearStorageMatrix() {
+        // Reiniciar la matriz de almacenamiento
+        for (int row = 0; row < storageSize; row++) {
+            for (int col = 0; col < storageSize; col++) {
+                storageMatrix[row][col] = null; // Liberar todos los bloques
+            }
+        }
+
+        // Reiniciar el espacio disponible
+        availableStorage = storageSize * storageSize;
+
+        // Limpiar la tabla de archivos
+        fileTable.clear();
+    }
+
+    public String[][] getStorageMatrixForGUI() {
+        String[][] guiMatrix = new String[storageSize][storageSize];
+
+        // Recorrer la matriz de almacenamiento
+        for (int row = 0; row < storageSize; row++) {
+            for (int col = 0; col < storageSize; col++) {
+                if (storageMatrix[row][col] != null) {
+                    // Bloque ocupado: obtener el nombre del archivo
+                    guiMatrix[row][col] = storageMatrix[row][col].getFather().getName();
+                } else {
+                    // Bloque libre: dejar vacio
+                    guiMatrix[row][col] = "";
+                }
+            }
+        }
+
+        return guiMatrix;
+    }
+
     /**
      * @return the storageSize
      */
